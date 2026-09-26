@@ -19,6 +19,9 @@ jobs:
           # ESP01S
           - target: "esp8266_esp01s"
             chip: "esp8266"
+          # ESP32-C3 DevKitM-1
+          - target: "esp32c3_devkitm1"
+            chip: "esp32c3"
           # Wemos D1 Mini ESP32
           - target: "esp32_wemos_d1_mini32"
             chip: "esp32"
