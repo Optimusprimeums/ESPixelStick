@@ -156,12 +156,7 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
             .clk_src = RMT_CLK_SRC_DEFAULT,         // select source clock
             .resolution_hz = uint32_t(RMT_TICK_RESOLUTION_HZ),
             .mem_block_symbols = NUM_RMT_SLOTS,     // increase the block size can make the LED less flickering
-            .trans_queue_depth =
-            #ifdef CONFIG_IDF_TARGET_ESP32C3
-                2,                                  // C3: only one frame/channel is active; keep queue memory bounded
-            #else
-                NUM_RMT_SLOTS,                      // preserve existing behavior on established targets
-            #endif
+            .trans_queue_depth = NUM_RMT_SLOTS,     // set the number of transactions that can be pending in the background
             .intr_priority = 0,                     // auto set interrupt priority
             .flags =
             {
@@ -194,12 +189,7 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
         {
             // DEBUG_V();
             // DEBUG_V("Start SendFrameTask");
-            #ifdef CONFIG_IDF_TARGET_ESP32C3
-            // ESP32-C3 is single-core. Pinning to core 1 is invalid.
-            xTaskCreatePinnedToCore(RMT_Task, "RMT_Task", 3072, NULL, 5, &SendFrameTaskHandle, 0);
-            #else
             xTaskCreatePinnedToCore(RMT_Task, "RMT_Task", 4096, NULL, 5, &SendFrameTaskHandle, 1);
-            #endif
             // DEBUG_V();
             vTaskPrioritySet(SendFrameTaskHandle, 5);
         }
