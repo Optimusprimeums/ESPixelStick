@@ -202,7 +202,11 @@ void c_InputMgr::Begin (uint32_t BufferSize)
     // CreateNewConfig();
 
 #if defined ARDUINO_ARCH_ESP32
+    #ifdef CONFIG_IDF_TARGET_ESP32C3
+    xTaskCreatePinnedToCore(InputMgrTask, "InputMgrTask", 3072, NULL, INPUTMGR_TASK_PRIORITY, &PollTaskHandle, 0);
+    #else
     xTaskCreatePinnedToCore(InputMgrTask, "InputMgrTask", 4096, NULL, INPUTMGR_TASK_PRIORITY, &PollTaskHandle, 0);
+    #endif
 #else
     MsTicker.attach_ms (uint32_t (FPP_TICKER_PERIOD_MS), &TimerPollHandler); // Add Timer Function
 #endif // ! defined ARDUINO_ARCH_ESP32
