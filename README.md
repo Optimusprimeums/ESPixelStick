@@ -21,6 +21,10 @@ If you would like to compile the project yourself and modify the source code, go
 
 Being open source, you are free to use the ESPixelStick firmware on the device of your choice. The code however is written specifically for the [ESPixelStick](http://forkineye.com/espixelstick). The ESPixelStick V3 utilizes a Wemos D1 Mini module and provides high current connectors, fusing, power filtering, reverse polarity protection, a differential output driver, SD card reader and proper logic level buffering. The ESPixelStick V3 is available for purchase from [Forkineye](https://forkineye.com/product/espixelstick-v3/). The proceeds go towards things like keeping my wife happy so I can work on this project :) At this time, there is not a pre-made ESP32 controller so it is up to the user to roll their own buffer for the WS281x output and add appropriate power connectors. A wide variety of ESP8266 and ESP32 platforms have been added to the supported devices list (37 as of this writting), all of which have artifacts created every build.
 
+### ESP32-C3 support
+
+This fork includes a generic `esp32c3_devkitm1` PlatformIO target for the Espressif ESP32-C3 DevKitM-1. The profile is intentionally conservative for the C3's single-core RISC-V CPU, smaller SRAM budget and reduced RMT resources: it uses size optimization, reduced network buffer counts, two default pixel/serial outputs on GPIO 4 and GPIO 5, and leaves common strapping and USB/JTAG pins unassigned. Board-specific C3 designs should add their own GPIO definition rather than reusing classic ESP32 pin maps.
+
 ## Build Requirements
 
 The recommended way to build ESPixelStick is with PlatformIO. Building from the Arduino IDE is no longer supported.
