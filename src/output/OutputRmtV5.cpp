@@ -156,7 +156,7 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
             .clk_src = RMT_CLK_SRC_DEFAULT,         // select source clock
             .resolution_hz = uint32_t(RMT_TICK_RESOLUTION_HZ),
             .mem_block_symbols = NUM_RMT_SLOTS,     // increase the block size can make the LED less flickering
-            .trans_queue_depth = NUM_RMT_SLOTS,     // set the number of transactions that can be pending in the background
+            .trans_queue_depth = 2,                 // one active frame per channel; avoid wasting internal RAM on an oversized transaction queue
             .intr_priority = 0,                     // auto set interrupt priority
             .flags =
             {
