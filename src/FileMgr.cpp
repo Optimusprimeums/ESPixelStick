@@ -2388,7 +2388,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         }
 #else
         FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
-            UploadBorrowedOutputBuffer = true;
+        UploadBorrowedOutputBuffer = true;
         OutputMgr.PauseOutputs(true);
         InputMgr.SetOperationalState(false);
         OutputMgr.ClearBuffer();
