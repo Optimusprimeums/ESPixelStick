@@ -92,6 +92,9 @@ private:
     volatile bool       FrameInFlight               = false;
     volatile bool       FrameEncodingComplete       = false;
     uint32_t            FrameStartTick              = 0;
+    uint32_t            ConcurrentFrameStarts       = 0;
+    uint32_t            ChannelFrameCompletes       = 0;
+    uint32_t            ChannelFrameTimeouts        = 0;
 #endif
     uint32_t            NumRmtSlotOverruns          = 0;
     const uint32_t      MaxNumRmtSlotsPerInterrupt  = (NUM_RMT_SLOTS/2);
@@ -127,7 +130,9 @@ public:
     bool IsFrameInFlight    () const { return FrameInFlight; }
     bool IsFrameComplete    () const { return FrameEncodingComplete; }
     uint32_t GetFrameStartTick () const { return FrameStartTick; }
-    void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; }
+    void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameCompletes; }
+    void TimeoutFrame       () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameTimeouts; }
+    void NoteConcurrentStart() { ++ConcurrentFrameStarts; }
 #endif
     void GetStatus          (ArduinoJson::JsonObject& jsonStatus);
     void PauseOutput        (bool State);
