@@ -129,6 +129,7 @@ public:
     bool StartNextFrame     () { return ((nullptr != pParent) && (!OutputIsPaused) && (!FrameInFlight)) ? pParent->RmtPoll() : false; }
     bool IsFrameInFlight    () const { return FrameInFlight; }
     bool IsFrameComplete    () const { return FrameEncodingComplete; }
+    void IRAM_ATTR MarkFrameTransmissionCompleteFromISR () { FrameEncodingComplete = true; }
     uint32_t GetFrameStartTick () const { return FrameStartTick; }
     void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameCompletes; }
     void TimeoutFrame       () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameTimeouts; }
