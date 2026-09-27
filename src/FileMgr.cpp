@@ -2365,13 +2365,27 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
     }
     else
     {
-        // DEBUG_V("Use the output buffer as a data buffer");
         FileList[FileListIndex].buffer.offset = 0;
         FileList[FileListIndex].buffer.size = min(uint32_t(OutputMgr.GetBufferSize() & ~(SD_BLOCK_SIZE - 1)), uint32_t(MAX_SD_BUFFER_SIZE));
+
+#if defined(BOARD_ESP32S3_DEVKITC) && defined(BOARD_HAS_PSRAM)
+        // N16R8: SD upload scratch data is not timing-critical; keep it in PSRAM.
+        FileList[FileListIndex].buffer.DataBuffer =
+            (byte*)heap_caps_malloc(FileList[FileListIndex].buffer.size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (nullptr == FileList[FileListIndex].buffer.DataBuffer)
+        {
+            // Non-fatal fallback to the proven legacy output-buffer path.
+            FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
+            OutputMgr.PauseOutputs(true);
+            InputMgr.SetOperationalState(false);
+            OutputMgr.ClearBuffer();
+        }
+#else
         FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
         OutputMgr.PauseOutputs(true);
         InputMgr.SetOperationalState(false);
         OutputMgr.ClearBuffer();
+#endif
         // DEBUG_V(String("Buffer Size: ") + String(FileList[FileListIndex].buffer.size));
     }
 
