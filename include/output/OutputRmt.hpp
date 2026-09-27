@@ -132,7 +132,7 @@ public:
     void IRAM_ATTR MarkFrameTransmissionCompleteFromISR () { FrameEncodingComplete = true; }
     uint32_t GetFrameStartTick () const { return FrameStartTick; }
     void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameCompletes; }
-    void TimeoutFrame       () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameTimeouts; }
+    void TimeoutFrame       ();
     void NoteConcurrentStart() { ++ConcurrentFrameStarts; }
 #else
     bool StartNextFrame     () { return ((nullptr != pParent) && (!OutputIsPaused)) ? pParent->RmtPoll() : false; }
