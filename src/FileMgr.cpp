@@ -1948,6 +1948,7 @@ void c_FileMgr::BuildFseqList(bool DisplayFileNames)
             {
                 // DEBUG_V("Skip embedded directory and hidden files");
                 CurrentEntry.close();
+                CurrentEntryName = InputDir.getNextFileName ();
                 continue;
             }
 
@@ -2136,6 +2137,7 @@ void c_FileMgr::FindFirstZipFile(String &FileName)
             {
                 // DEBUG_V("Skip embedded directory and hidden files");
                 CurrentEntry.close();
+                CurrentEntry = InputFile.openNextFile();
                 continue;
             }
 
