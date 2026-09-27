@@ -125,14 +125,16 @@ public:
 
     void Begin              (OutputRmtConfig_t config, c_OutputCommon * pParent);
     bool StartNewFrame      ();
-    bool StartNextFrame     () { return ((nullptr != pParent) & (!OutputIsPaused) & (!FrameInFlight)) ? pParent->RmtPoll() : false; }
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    bool StartNextFrame     () { return ((nullptr != pParent) && (!OutputIsPaused) && (!FrameInFlight)) ? pParent->RmtPoll() : false; }
     bool IsFrameInFlight    () const { return FrameInFlight; }
     bool IsFrameComplete    () const { return FrameEncodingComplete; }
     uint32_t GetFrameStartTick () const { return FrameStartTick; }
     void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameCompletes; }
     void TimeoutFrame       () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameTimeouts; }
     void NoteConcurrentStart() { ++ConcurrentFrameStarts; }
+#else
+    bool StartNextFrame     () { return ((nullptr != pParent) && (!OutputIsPaused)) ? pParent->RmtPoll() : false; }
 #endif
     void GetStatus          (ArduinoJson::JsonObject& jsonStatus);
     void PauseOutput        (bool State);
