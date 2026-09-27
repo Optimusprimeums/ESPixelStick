@@ -1226,7 +1226,10 @@ void c_FileMgr::GetListOfSdFiles (std::vector<String> & Response)
         {
             if(MyFile.isDirectory())
             {
-                // not a file we are looking for
+                // Advance before continuing or a directory entry will be
+                // processed forever while the SD semaphore remains held.
+                MyFile.close();
+                MyFile = root.openNextFile ();
                 continue;
             }
 
