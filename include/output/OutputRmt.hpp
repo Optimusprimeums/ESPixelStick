@@ -88,6 +88,11 @@ private:
 
     OutputRmtConfig_t   OutputRmtConfig;
     bool                OutputIsPaused              = false;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    volatile bool       FrameInFlight               = false;
+    volatile bool       FrameEncodingComplete       = false;
+    uint32_t            FrameStartTick              = 0;
+#endif
     uint32_t            NumRmtSlotOverruns          = 0;
     const uint32_t      MaxNumRmtSlotsPerInterrupt  = (NUM_RMT_SLOTS/2);
 
@@ -117,7 +122,13 @@ public:
 
     void Begin              (OutputRmtConfig_t config, c_OutputCommon * pParent);
     bool StartNewFrame      ();
-    bool StartNextFrame     () { return ((nullptr != pParent) & (!OutputIsPaused)) ? pParent->RmtPoll() : false; }
+    bool StartNextFrame     () { return ((nullptr != pParent) & (!OutputIsPaused) & (!FrameInFlight)) ? pParent->RmtPoll() : false; }
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    bool IsFrameInFlight    () const { return FrameInFlight; }
+    bool IsFrameComplete    () const { return FrameEncodingComplete; }
+    uint32_t GetFrameStartTick () const { return FrameStartTick; }
+    void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; }
+#endif
     void GetStatus          (ArduinoJson::JsonObject& jsonStatus);
     void PauseOutput        (bool State);
     void GetDriverName      (String &value)  { value = CN_RMT; }
