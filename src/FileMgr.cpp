@@ -2245,6 +2245,7 @@ bool c_FileMgr::handleFileUpload (
                 // DEBUG_FILE_HANDLE (fsUploadFileHandle);
                 // DEBUG_V(String("fsUploadFileName: ") + fsUploadFileName);
                 CloseSdFile (fsUploadFileHandle);
+                RestoreUploadOutputState();
                 // DEBUG_V(String("fsUploadFileName: ") + fsUploadFileName);
                 DeleteSdFile (fsUploadFileName);
                 delay(100);
@@ -2281,6 +2282,7 @@ bool c_FileMgr::handleFileUpload (
             // DEBUG_V("Write failed. Stop transfer");
             // DEBUG_FILE_HANDLE (fsUploadFileHandle);
             CloseSdFile(fsUploadFileHandle);
+            RestoreUploadOutputState();
             DeleteSdFile (fsUploadFileName);
             expectedIndex = 0;
             fsUploadFileName.clear();
@@ -2311,13 +2313,7 @@ bool c_FileMgr::handleFileUpload (
         delay(100);
         BuildFseqList(false);
 
-        if(UploadBorrowedOutputBuffer)
-        {
-            OutputMgr.ClearBuffer();
-            OutputMgr.PauseOutputs(false);
-            InputMgr.SetOperationalState(true);
-            UploadBorrowedOutputBuffer = false;
-        }
+        RestoreUploadOutputState();
 
         // DEBUG_V(String("Expected: ") + String(totalLen));
         // DEBUG_V(String("     Got: ") + String(GetSdFileSize(fsUploadFileName)));
@@ -2361,6 +2357,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         logcon (String (F ("Aborting Previous File Upload For: '")) + fsUploadFileName + String (F ("'")));
         // DEBUG_FILE_HANDLE (fsUploadFileHandle);
         CloseSdFile (fsUploadFileHandle);
+        RestoreUploadOutputState();
     }
 
     // Set up to receive a file
