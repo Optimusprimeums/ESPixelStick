@@ -785,6 +785,11 @@ void c_WebMgr::ProcessXJRequest (AsyncWebServerRequest* client)
     JsonWrite(HeapDetails, F ("n80C_Free_Tot"),  heap_caps_get_free_size(0x80C));
     JsonWrite(HeapDetails, F ("n1800_Free_Max"), heap_caps_get_largest_free_block(0x1800));
     JsonWrite(HeapDetails, F ("n1800_Free_Tot"), heap_caps_get_free_size(0x1800));
+#if defined(BOARD_ESP32S3_DEVKITC) && defined(BOARD_HAS_PSRAM)
+    JsonWrite(HeapDetails, F ("psram_size"), ESP.getPsramSize());
+    JsonWrite(HeapDetails, F ("psram_free"), ESP.getFreePsram());
+    JsonWrite(HeapDetails, F ("psram_max"),  heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+#endif
 #else
     JsonWrite(HeapDetails, F ("n804_Free_Max"),  ESP.getMaxFreeBlockSize());
     JsonWrite(HeapDetails, F ("n804_Free_Tot"),  ESP.getFreeHeap());
@@ -850,6 +855,11 @@ void c_WebMgr::ProcessHeapRequest (AsyncWebServerRequest* client)
     JsonWrite(status, F ("n1800_Free_Max"), heap_caps_get_largest_free_block(0x1800));
     // DEBUG_V();
     JsonWrite(status, F ("n1800_Free_Tot"), heap_caps_get_free_size(0x1800));
+#if defined(BOARD_ESP32S3_DEVKITC) && defined(BOARD_HAS_PSRAM)
+    JsonWrite(status, F ("psram_size"), ESP.getPsramSize());
+    JsonWrite(status, F ("psram_free"), ESP.getFreePsram());
+    JsonWrite(status, F ("psram_max"),  heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+#endif
 #else
     JsonWrite(status, F ("n804_Free_Max"),  ESP.getMaxFreeBlockSize());
     JsonWrite(status, F ("n804_Free_Tot"),  ESP.getFreeHeap());
