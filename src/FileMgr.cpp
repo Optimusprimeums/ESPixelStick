@@ -2335,6 +2335,18 @@ bool c_FileMgr::handleFileUpload (
 } // handleFileUpload
 
 //-----------------------------------------------------------------------------
+void c_FileMgr::RestoreUploadOutputState ()
+{
+    if(UploadBorrowedOutputBuffer)
+    {
+        OutputMgr.ClearBuffer();
+        OutputMgr.PauseOutputs(false);
+        InputMgr.SetOperationalState(true);
+        UploadBorrowedOutputBuffer = false;
+    }
+}
+
+//-----------------------------------------------------------------------------
 void c_FileMgr::handleFileUploadNewFile (const String & filename)
 {
     // DEBUG_START;
