@@ -30,6 +30,8 @@ static uint32_t         RawIsrCounter = 0;
 static TaskHandle_t     SendFrameTaskHandle = NULL;
 static uint32_t         FrameCompletes = 0;
 static uint32_t         FrameTimeouts = 0;
+static uint32_t         ActiveFrameChannels = 0;
+static uint32_t         MaxActiveFrameChannels = 0;
 static c_OutputRmt *    rmt_isr_ThisPtrs[MAX_NUM_RMT_CHANNELS];
 
 //----------------------------------------------------------------------------
@@ -38,6 +40,7 @@ void RMT_Task (void *arg)
     while(1)
     {
         bool AnyFrameInFlight = false;
+        uint32_t CurrentActiveChannels = 0;
 
         // Launch every ready channel before waiting. ESP32-S3 RMT channels are
         // independent hardware engines, so this allows parallel pixel output.
@@ -72,7 +75,14 @@ void RMT_Task (void *arg)
             }
 
             AnyFrameInFlight |= pRmt->IsFrameInFlight();
+            if(pRmt->IsFrameInFlight())
+            {
+                ++CurrentActiveChannels;
+            }
         }
+
+        ActiveFrameChannels = CurrentActiveChannels;
+        MaxActiveFrameChannels = max(MaxActiveFrameChannels, CurrentActiveChannels);
 
         // Hardware TX completion wakes this task immediately. The short timeout is
         // also a recovery/poll path for channels with no current frame.
@@ -252,6 +262,8 @@ void c_OutputRmt::GetStatus (ArduinoJson::JsonObject& jsonStatus)
 
     debugStatus["ErrorIsr"]                     = RMT_DEBUG_COUNTER(ErrorIsr);
     debugStatus["FrameCompletes"]               = FrameCompletes;
+    debugStatus["ActiveFrameChannels"]          = ActiveFrameChannels;
+    debugStatus["MaxActiveFrameChannels"]       = MaxActiveFrameChannels;
     debugStatus["FrameStartCounter"]            = RMT_DEBUG_COUNTER(FrameStartCounter);
     debugStatus["FrameTimeouts"]                = FrameTimeouts;
     debugStatus["FailedToSendAllData"]          = RMT_DEBUG_COUNTER(FailedToSendAllData);
