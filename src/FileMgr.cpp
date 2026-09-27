@@ -1627,7 +1627,7 @@ void c_FileMgr::CloseSdFile (FileId& FileHandle)
         {
             if(FileList[FileListIndex].buffer.DataBuffer != OutputMgr.ISR_GetBufferAddress())
             {
-                // only free the buffer if it is not malloc'd
+                // Free dedicated heap/PSRAM buffers; never free the borrowed output buffer.
                 free(FileList[FileListIndex].buffer.DataBuffer);
             }
         }
