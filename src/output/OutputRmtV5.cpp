@@ -235,9 +235,14 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
         {
             // DEBUG_V();
             // DEBUG_V("Start SendFrameTask");
-            xTaskCreatePinnedToCore(RMT_Task, "RMT_Task", 4096, NULL, 5, &SendFrameTaskHandle, 1);
-            // DEBUG_V();
-            vTaskPrioritySet(SendFrameTaskHandle, 5);
+            const BaseType_t TaskCreated = xTaskCreatePinnedToCore(RMT_Task, "RMT_Task", 4096, NULL, 5, &SendFrameTaskHandle, 1);
+            if((pdPASS != TaskCreated) || (nullptr == SendFrameTaskHandle))
+            {
+                logcon(F("ERROR: Failed to create RMT scheduler task. Rebooting"));
+                RequestReboot(F("RMT scheduler task creation failed"), 10000);
+                break;
+            }
+            // Priority is already supplied to xTaskCreatePinnedToCore().
         }
         // DEBUG_V();
         // DEBUG_V("Add this instance to the running list");
