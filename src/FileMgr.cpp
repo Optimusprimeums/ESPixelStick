@@ -179,7 +179,8 @@ void c_FileMgr::Begin ()
 #ifdef ARDUINO_ARCH_ESP32
         if(nullptr == SdAccessSemaphore)
         {
-            RequestReboot(F("ERROR: Failed to create SD access semaphore"), 1000, true);
+            String Reason = F("ERROR: Failed to create SD access semaphore");
+            RequestReboot(Reason, 1000, true);
             break;
         }
 #endif // def ARDUINO_ARCH_ESP32
