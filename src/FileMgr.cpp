@@ -149,7 +149,10 @@ c_FileMgr::c_FileMgr ()
 {
 #ifdef ARDUINO_ARCH_ESP32
     SdAccessSemaphore = xSemaphoreCreateBinary();
-    UnLockSd();
+    if(nullptr != SdAccessSemaphore)
+    {
+        UnLockSd();
+    }
 #endif // def ARDUINO_ARCH_ESP32
     fsUploadFileName.reserve(256);
     InitSdFileList ();
@@ -173,6 +176,14 @@ void c_FileMgr::Begin ()
 
     do // once
     {
+#ifdef ARDUINO_ARCH_ESP32
+        if(nullptr == SdAccessSemaphore)
+        {
+            RequestReboot(F("ERROR: Failed to create SD access semaphore"), 1000, true);
+            break;
+        }
+#endif // def ARDUINO_ARCH_ESP32
+
         if (!LittleFS.begin ())
         {
             String msg = String(CN_stars) + F (" Flash file system did not initialize correctly ") + CN_stars;
@@ -2492,7 +2503,10 @@ void c_FileMgr::LockSd()
     // DEBUG_START;
 
 #ifdef ARDUINO_ARCH_ESP32
-    xSemaphoreTake( SdAccessSemaphore, TickType_t(-1) );
+    if(nullptr != SdAccessSemaphore)
+    {
+        xSemaphoreTake( SdAccessSemaphore, portMAX_DELAY );
+    }
 #endif // def ARDUINO_ARCH_ESP32
 
     // DEBUG_END;
@@ -2503,7 +2517,10 @@ void c_FileMgr::UnLockSd()
 {
     // DEBUG_START;
 #ifdef ARDUINO_ARCH_ESP32
-    xSemaphoreGive( SdAccessSemaphore );
+    if(nullptr != SdAccessSemaphore)
+    {
+        xSemaphoreGive( SdAccessSemaphore );
+    }
 #endif // def ARDUINO_ARCH_ESP32
 
     // DEBUG_END;
