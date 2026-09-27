@@ -112,9 +112,19 @@ c_OutputRmt::~c_OutputRmt ()
         rmt_isr_ThisPtrs[OutputRmtConfig.RmtChannelId] = (c_OutputRmt*)nullptr;
         FrameInFlight = false;
         FrameEncodingComplete = false;
-        ISR_ResetRmtBlockPointers (); // Stop transmitter
+
+        // Stop the channel before releasing callback/encoder state. Deleting
+        // the channel unregisters its TX-done callback and prevents a late ISR
+        // from dereferencing this object after destruction.
         rmt_disable(rmt_channel_handle);
-        yield();
+        rmt_del_channel(rmt_channel_handle);
+        rmt_channel_handle = nullptr;
+
+        if(nullptr != rmt_encoder_handle)
+        {
+            rmt_del_encoder(rmt_encoder_handle);
+            rmt_encoder_handle = nullptr;
+        }
     }
 
     // DEBUG_END;
