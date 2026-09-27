@@ -2506,6 +2506,10 @@ void c_FileMgr::AbortSdFileUpload()
         CloseSdFile(fsUploadFileHandle);
     }
 
+    RestoreUploadOutputState();
+    expectedIndex = 0;
+    fsUploadFileName.clear();
+
     // DEBUG_END;
 } // AbortSdFileUpload
 
