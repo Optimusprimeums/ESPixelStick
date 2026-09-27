@@ -458,6 +458,18 @@ size_t IRAM_ATTR c_OutputRmt::ISR_TransferIntensityDataToRMT (rmt_item32_t *symb
 } // ISR_TransferIntensityDataToRMT
 
 //----------------------------------------------------------------------------
+void c_OutputRmt::TimeoutFrame ()
+{
+    // A timeout means software can no longer trust the driver's queued
+    // transaction state. Disable/re-enable the channel to discard pending
+    // hardware/driver work before allowing another frame to start.
+    ISR_ResetRmtBlockPointers();
+    FrameInFlight = false;
+    FrameEncodingComplete = false;
+    ++ChannelFrameTimeouts;
+}
+
+//----------------------------------------------------------------------------
 void c_OutputRmt::PauseOutput(bool PauseOutput)
 {
     /// DEBUG_START;
