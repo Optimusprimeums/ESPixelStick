@@ -2373,8 +2373,8 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         FileList[FileListIndex].buffer.size = min(uint32_t(OutputMgr.GetBufferSize() & ~(SD_BLOCK_SIZE - 1)), uint32_t(MAX_SD_BUFFER_SIZE));
         UploadBorrowedOutputBuffer = false;
 
-#if defined(BOARD_ESP32S3_DEVKITC) && defined(BOARD_HAS_PSRAM)
-        // N16R8: SD upload scratch data is not timing-critical; keep it in PSRAM.
+#if defined(BOARD_HAS_PSRAM)
+        // Upload scratch data is not timing-critical; keep it in PSRAM when available.
         FileList[FileListIndex].buffer.DataBuffer =
             (byte*)heap_caps_malloc(FileList[FileListIndex].buffer.size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (nullptr == FileList[FileListIndex].buffer.DataBuffer)
