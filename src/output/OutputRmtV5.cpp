@@ -28,7 +28,6 @@ static uint32_t         RawIsrCounter = 0;
 #endif // def USE_RMT_DEBUG_COUNTERS
 
 static TaskHandle_t     SendFrameTaskHandle = NULL;
-static BaseType_t       xHigherPriorityTaskWoken = pdTRUE;
 static uint32_t         FrameCompletes = 0;
 static uint32_t         FrameTimeouts = 0;
 static c_OutputRmt *    rmt_isr_ThisPtrs[MAX_NUM_RMT_CHANNELS];
@@ -75,7 +74,7 @@ void RMT_Task (void *arg)
             AnyFrameInFlight |= pRmt->IsFrameInFlight();
         }
 
-        // Encoder completion wakes this task immediately. The short timeout is
+        // Hardware TX completion wakes this task immediately. The short timeout is
         // also a recovery/poll path for channels with no current frame.
         ulTaskNotifyTake(pdTRUE, AnyFrameInFlight ? pdMS_TO_TICKS(2) : pdMS_TO_TICKS(1));
     }
@@ -129,6 +128,24 @@ static size_t IRAM_ATTR ISR_encoder_callback(const void *data, size_t data_size,
 } // ISR_encoder_callback
 
 //----------------------------------------------------------------------------
+// The encoder callback only means all source symbols have been produced.
+// This callback is the authoritative end-of-wire transaction completion.
+static bool IRAM_ATTR ISR_tx_done_callback(rmt_channel_handle_t tx_chan,
+                                           const rmt_tx_done_event_data_t *edata,
+                                           void *arg)
+{
+    (void)tx_chan;
+    (void)edata;
+
+    c_OutputRmt *pRmt = reinterpret_cast<c_OutputRmt*>(arg);
+    pRmt->MarkFrameTransmissionCompleteFromISR();
+
+    BaseType_t HigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(SendFrameTaskHandle, &HigherPriorityTaskWoken);
+    return (HigherPriorityTaskWoken == pdTRUE);
+}
+
+//----------------------------------------------------------------------------
 void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
 {
     // DEBUG_START;
@@ -170,6 +187,13 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
             }
         };
         ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &rmt_channel_handle));
+        DEBUG_V();
+
+        const rmt_tx_event_callbacks_t tx_callbacks =
+        {
+            .on_trans_done = ISR_tx_done_callback
+        };
+        ESP_ERROR_CHECK(rmt_tx_register_event_callbacks(rmt_channel_handle, &tx_callbacks, this));
         DEBUG_V();
 
         const rmt_simple_encoder_config_t encoder_cfg =
@@ -370,10 +394,9 @@ size_t IRAM_ATTR c_OutputRmt::ISR_Handler (const void *data, size_t data_size,
         if (0 == NumUsedEntriesInSendBuffer)
         {
             RMT_DEBUG_INC_COUNTER(RanOutOfData);
+            // Encoding is complete, but the final symbols may still be on the
+            // wire. ISR_tx_done_callback owns transaction completion/wakeup.
             *done = true;
-            FrameEncodingComplete = true;
-            // Wake the scheduler; completion ownership is per channel.
-            vTaskNotifyGiveFromISR( SendFrameTaskHandle, &xHigherPriorityTaskWoken );
         }
         else
         {
