@@ -58,14 +58,18 @@ void RMT_Task (void *arg)
                 }
                 else if((xTaskGetTickCount() - pRmt->GetFrameStartTick()) > pdMS_TO_TICKS(100))
                 {
-                    pRmt->CompleteFrame();
+                    pRmt->TimeoutFrame();
                     ++FrameTimeouts;
                 }
             }
 
             if(!pRmt->IsFrameInFlight())
             {
-                pRmt->StartNextFrame();
+                bool OtherFrameActive = AnyFrameInFlight;
+                if(pRmt->StartNextFrame() && OtherFrameActive)
+                {
+                    pRmt->NoteConcurrentStart();
+                }
             }
 
             AnyFrameInFlight |= pRmt->IsFrameInFlight();
@@ -244,6 +248,10 @@ void c_OutputRmt::GetStatus (ArduinoJson::JsonObject& jsonStatus)
     debugStatus["SendBlockIsrCounter"]          = RMT_DEBUG_COUNTER(SendBlockIsrCounter);
     debugStatus["UnknownISRcounter"]            = RMT_DEBUG_COUNTER(UnknownISRcounter);
     debugStatus["WriteToBuffer"]                = RMT_DEBUG_COUNTER(WriteToBuffer);
+    debugStatus["FrameInFlight"]                 = FrameInFlight;
+    debugStatus["ConcurrentFrameStarts"]         = ConcurrentFrameStarts;
+    debugStatus["ChannelFrameCompletes"]         = ChannelFrameCompletes;
+    debugStatus["ChannelFrameTimeouts"]          = ChannelFrameTimeouts;
 
 #ifdef IncludeBufferData
     {
