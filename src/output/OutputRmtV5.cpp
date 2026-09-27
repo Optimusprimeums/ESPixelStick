@@ -36,51 +36,44 @@ static c_OutputRmt *    rmt_isr_ThisPtrs[MAX_NUM_RMT_CHANNELS];
 //----------------------------------------------------------------------------
 void RMT_Task (void *arg)
 {
-    // DEBUG_V(String("Current CPU ID: ") + String(xPortGetCoreID()));
-    // pinMode(17, OUTPUT);
-    // digitalWrite(17, HIGH);
     while(1)
     {
-        // Give the outputs a chance to catch up.
-        bool FoundAchannelToProcess = false;
+        bool AnyFrameInFlight = false;
 
-        // process all possible channels
+        // Launch every ready channel before waiting. ESP32-S3 RMT channels are
+        // independent hardware engines, so this allows parallel pixel output.
         for (c_OutputRmt * pRmt : rmt_isr_ThisPtrs)
         {
-            // do we have a driver on this channel?
-            if(nullptr != pRmt)
+            if(nullptr == pRmt)
             {
-                // digitalWrite(17, LOW);
+                continue;
+            }
 
-                // invoke the channel
-                if (pRmt->StartNextFrame())
+            if(pRmt->IsFrameInFlight())
+            {
+                if(pRmt->IsFrameComplete())
                 {
-                    FoundAchannelToProcess = true;
-
-                    // sys_delay_ms(500);
-                    uint32_t NotificationValue = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS(100) );
-                    // digitalWrite(17, HIGH);
-
-                    if(1 == NotificationValue)
-                    {
-                        // DEBUG_V("The transmission ended as expected.");
-                        ++FrameCompletes;
-                    }
-                    else
-                    {
-                        ++FrameTimeouts;
-                        // DEBUG_V("Transmit Timed Out.");
-                    }
+                    pRmt->CompleteFrame();
+                    ++FrameCompletes;
+                }
+                else if((xTaskGetTickCount() - pRmt->GetFrameStartTick()) > pdMS_TO_TICKS(100))
+                {
+                    pRmt->CompleteFrame();
+                    ++FrameTimeouts;
                 }
             }
+
+            if(!pRmt->IsFrameInFlight())
+            {
+                pRmt->StartNextFrame();
+            }
+
+            AnyFrameInFlight |= pRmt->IsFrameInFlight();
         }
 
-        if(false == FoundAchannelToProcess)
-        {
-            // No channel is ready. Keep the poll interval short enough for pixel
-            // frame latency while yielding core 1 to networking/web/file work.
-            vTaskDelay(pdMS_TO_TICKS(1));
-        }
+        // Encoder completion wakes this task immediately. The short timeout is
+        // also a recovery/poll path for channels with no current frame.
+        ulTaskNotifyTake(pdTRUE, AnyFrameInFlight ? pdMS_TO_TICKS(2) : pdMS_TO_TICKS(1));
     }
 } // RMT_Task
 
@@ -366,7 +359,8 @@ size_t IRAM_ATTR c_OutputRmt::ISR_Handler (const void *data, size_t data_size,
         {
             RMT_DEBUG_INC_COUNTER(RanOutOfData);
             *done = true;
-            // tell the background task to start the next output
+            FrameEncodingComplete = true;
+            // Wake the scheduler; completion ownership is per channel.
             vTaskNotifyGiveFromISR( SendFrameTaskHandle, &xHigherPriorityTaskWoken );
         }
         else
@@ -500,7 +494,16 @@ bool c_OutputRmt::StartNewFrame ()
         // DEBUG_V(String("rmt_encoder_handle: ") + String(uint32_t(rmt_encoder_handle)));
         // DEBUG_V(String("       BufferStart: ") + String(uint32_t(OutputRmtConfig.BufferStart)));
         // DEBUG_V(String("   NumBytesInFrame: ") + String(uint32_t(OutputRmtConfig.NumBytesInFrame)));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(rmt_transmit(rmt_channel_handle, rmt_encoder_handle, OutputRmtConfig.BufferStart, OutputRmtConfig.NumBytesInFrame, &tx_config));
+        FrameEncodingComplete = false;
+        FrameInFlight = true;
+        FrameStartTick = xTaskGetTickCount();
+        esp_err_t TransmitResult = rmt_transmit(rmt_channel_handle, rmt_encoder_handle, OutputRmtConfig.BufferStart, OutputRmtConfig.NumBytesInFrame, &tx_config);
+        if(ESP_OK != TransmitResult)
+        {
+            FrameInFlight = false;
+            ESP_ERROR_CHECK_WITHOUT_ABORT(TransmitResult);
+            break;
+        }
 
         // rmt_set_gpio (OutputRmtConfig.RmtChannelId, rmt_mode_t::RMT_MODE_TX, OutputRmtConfig.DataPin, false);
         // digitalWrite(42, HIGH);
