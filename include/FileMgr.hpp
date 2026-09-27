@@ -162,6 +162,7 @@ private:
     void listDir (fs::FS& fs, String dirname, uint8_t levels);
     void DescribeSdCardToUser ();
     void handleFileUploadNewFile (const String & filename);
+    void RestoreUploadOutputState ();
     void printDirectory (FsFile & dir, int numTabs);
 
     bool     SdCardInstalled = false;
