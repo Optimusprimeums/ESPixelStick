@@ -94,9 +94,13 @@ c_OutputRmt::~c_OutputRmt ()
 
     if (HasBeenInitialized)
     {
+        // Remove the instance from the scheduler before stopping hardware so
+        // the worker cannot start another frame during destruction.
+        rmt_isr_ThisPtrs[OutputRmtConfig.RmtChannelId] = (c_OutputRmt*)nullptr;
+        FrameInFlight = false;
+        FrameEncodingComplete = false;
         ISR_ResetRmtBlockPointers (); // Stop transmitter
         rmt_disable(rmt_channel_handle);
-        rmt_isr_ThisPtrs[OutputRmtConfig.RmtChannelId] = (c_OutputRmt*)nullptr;
         yield();
     }
 
@@ -437,6 +441,12 @@ void c_OutputRmt::PauseOutput(bool PauseOutput)
     }
 
     OutputIsPaused = PauseOutput;
+    if(PauseOutput)
+    {
+        FrameInFlight = false;
+        FrameEncodingComplete = false;
+        ISR_ResetRmtBlockPointers();
+    }
 
     ///DEBUG_END;
 } // PauseOutput
