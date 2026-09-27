@@ -2311,9 +2311,13 @@ bool c_FileMgr::handleFileUpload (
         delay(100);
         BuildFseqList(false);
 
-        OutputMgr.ClearBuffer();
-        OutputMgr.PauseOutputs(false);
-        InputMgr.SetOperationalState(false);
+        if(UploadBorrowedOutputBuffer)
+        {
+            OutputMgr.ClearBuffer();
+            OutputMgr.PauseOutputs(false);
+            InputMgr.SetOperationalState(true);
+            UploadBorrowedOutputBuffer = false;
+        }
 
         // DEBUG_V(String("Expected: ") + String(totalLen));
         // DEBUG_V(String("     Got: ") + String(GetSdFileSize(fsUploadFileName)));
@@ -2367,6 +2371,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
     {
         FileList[FileListIndex].buffer.offset = 0;
         FileList[FileListIndex].buffer.size = min(uint32_t(OutputMgr.GetBufferSize() & ~(SD_BLOCK_SIZE - 1)), uint32_t(MAX_SD_BUFFER_SIZE));
+        UploadBorrowedOutputBuffer = false;
 
 #if defined(BOARD_ESP32S3_DEVKITC) && defined(BOARD_HAS_PSRAM)
         // N16R8: SD upload scratch data is not timing-critical; keep it in PSRAM.
@@ -2376,12 +2381,14 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         {
             // Non-fatal fallback to the proven legacy output-buffer path.
             FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
+            UploadBorrowedOutputBuffer = true;
             OutputMgr.PauseOutputs(true);
             InputMgr.SetOperationalState(false);
             OutputMgr.ClearBuffer();
         }
 #else
         FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
+            UploadBorrowedOutputBuffer = true;
         OutputMgr.PauseOutputs(true);
         InputMgr.SetOperationalState(false);
         OutputMgr.ClearBuffer();
