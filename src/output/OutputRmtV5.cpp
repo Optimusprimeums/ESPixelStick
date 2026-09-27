@@ -77,8 +77,9 @@ void RMT_Task (void *arg)
 
         if(false == FoundAchannelToProcess)
         {
-            // let the other tasks run for a bit
-            vTaskDelay(5 / portTICK_PERIOD_MS);
+            // No channel is ready. Keep the poll interval short enough for pixel
+            // frame latency while yielding core 1 to networking/web/file work.
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
     }
 } // RMT_Task
