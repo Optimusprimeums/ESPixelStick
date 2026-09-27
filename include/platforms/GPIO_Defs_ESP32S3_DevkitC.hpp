@@ -34,7 +34,12 @@ const OM_OutputPortDefinition_t OM_OutputPortDefinitions[] =
 };
 
 // File Manager
-// N16R8 DevKitC target has no SD-card hardware. Persistent files use internal flash.
+#define SUPPORT_SD
+#define ENABLE_DEDICATED_SPI 1
+#define SD_CARD_MISO_PIN        gpio_num_t::GPIO_NUM_7
+#define SD_CARD_MOSI_PIN        gpio_num_t::GPIO_NUM_6
+#define SD_CARD_CLK_PIN         gpio_num_t::GPIO_NUM_5
+#define SD_CARD_CS_PIN          gpio_num_t::GPIO_NUM_4
 
 // Special settings for the ESP32S3 Processors
 #define DEFAULT_CONSOLE_TX_GPIO gpio_num_t::GPIO_NUM_43
