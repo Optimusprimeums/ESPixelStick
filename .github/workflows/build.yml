@@ -143,8 +143,6 @@ jobs:
           - target: "esp32s3_devkitc"
             chip: "esp32s3"
           #
-          - target: "esp32s3_devkitc_Internal_SD"
-            chip: "esp32s3"
           # Seeed Studio XIAO ESP32-S3
           - target: "esp32s3_seeed_xiao"
             chip: "esp32s3"
