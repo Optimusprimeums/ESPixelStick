@@ -1597,7 +1597,12 @@ uint64_t c_FileMgr::ReadSdFile (const FileId& FileHandle, byte* FileData, uint64
     int FileListIndex;
     if (-1 != (FileListIndex = FileListFindSdFileHandle (FileHandle)))
     {
-        uint64_t BytesRemaining = uint64_t(FileList[FileListIndex].size - StartingPosition);
+        if(StartingPosition >= FileList[FileListIndex].size)
+        {
+            return 0;
+        }
+
+        uint64_t BytesRemaining = FileList[FileListIndex].size - StartingPosition;
         uint64_t ActualBytesToRead = min(NumBytesToRead, BytesRemaining);
         // DEBUG_V(String("   BytesRemaining: ") + String(BytesRemaining));
         // DEBUG_V(String("ActualBytesToRead: ") + String(ActualBytesToRead));
