@@ -1752,6 +1752,34 @@ uint64_t c_FileMgr::WriteSdFileBuf (const FileId& FileHandle, byte* FileData, ui
         {
             // DEBUG_V("Using buffers");
             // DEBUG_V(String("     NumBytesInSourceBuffer: ") + String(NumBytesInSourceBuffer));
+            if((0 == FileList[FileListIndex].buffer.size) ||
+               (FileList[FileListIndex].buffer.offset > FileList[FileListIndex].buffer.size))
+            {
+                logcon(F("WriteSdFileBuf:ERROR:Invalid SD buffer state"));
+                break;
+            }
+
+            if(NumBytesInSourceBuffer > FileList[FileListIndex].buffer.size)
+            {
+                if(FileList[FileListIndex].buffer.offset)
+                {
+                    FeedWDT();
+                    LockSd();
+                    uint64_t WroteToSdSize = FileList[FileListIndex].fsFile.write(FileList[FileListIndex].buffer.DataBuffer, FileList[FileListIndex].buffer.offset);
+                    FileList[FileListIndex].fsFile.flush();
+                    UnLockSd();
+                    if(FileList[FileListIndex].buffer.offset != WroteToSdSize)
+                    {
+                        logcon(F("WriteSdFileBuf:ERROR:Failed to flush SD buffer before large write"));
+                        break;
+                    }
+                    FileList[FileListIndex].buffer.offset = 0;
+                }
+
+                NumBytesWrittenToDestBuffer = WriteSdFile(FileHandle, FileData, NumBytesInSourceBuffer);
+                break;
+            }
+
             uint64_t SpaceRemaining = FileList[FileListIndex].buffer.size - FileList[FileListIndex].buffer.offset;
             // DEBUG_V(String("             SpaceRemaining: ") + String(SpaceRemaining));
 
