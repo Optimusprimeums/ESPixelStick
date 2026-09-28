@@ -1444,7 +1444,7 @@ bool c_FileMgr::OpenSdFile (const String & _FileName, FileMode Mode, FileId & Fi
             LockSd();
             #ifdef SIMULATE_SD
             FileList[FileListIndex].fsFile = ESP_SDFS.open (FileName, &XlateFileMode[Mode]);
-            FileList[FileListIndex].IsOpen = true;
+            FileList[FileListIndex].IsOpen = bool(FileList[FileListIndex].fsFile);
             #else
             FileList[FileListIndex].IsOpen = FileList[FileListIndex].fsFile.open(FileList[FileListIndex].Filename.c_str(), XlateFileMode[Mode]);
             #endif // def SIMULATE_SD
