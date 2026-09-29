@@ -1654,6 +1654,9 @@ void c_FileMgr::CloseSdFile (FileId& FileHandle)
         FileList[FileListIndex].buffer.DataBuffer = nullptr;
         FileList[FileListIndex].buffer.size = 0;
         FileList[FileListIndex].buffer.offset = 0;
+        FileList[FileListIndex].size = 0;
+        FileList[FileListIndex].mode = FileMode::FileRead;
+        FileList[FileListIndex].Filename.clear();
     }
     else
     {
