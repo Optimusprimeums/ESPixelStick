@@ -1127,10 +1127,20 @@ c_FileMgr::FileId c_FileMgr::CreateSdFileHandle ()
     FileId response = INVALID_FILE_HANDLE;
     FileId FileHandle = millis ();
 
-    // create a unique handle
+    // create a unique, valid handle. millis() can be zero at boot and
+    // incrementing a colliding handle can wrap back to the invalid sentinel.
+    if(INVALID_FILE_HANDLE == FileHandle)
+    {
+        ++FileHandle;
+    }
+
     while (-1 != FileListFindSdFileHandle (FileHandle))
     {
         ++FileHandle;
+        if(INVALID_FILE_HANDLE == FileHandle)
+        {
+            ++FileHandle;
+        }
     }
 
     // find an empty slot
