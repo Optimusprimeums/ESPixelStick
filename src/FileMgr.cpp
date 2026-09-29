@@ -2343,6 +2343,18 @@ bool c_FileMgr::handleFileUpload (
 
     if ((true == final) && (fsUploadFileHandle != INVALID_FILE_HANDLE))
     {
+        if(expectedIndex != totalLen)
+        {
+            logcon(String(F("ERROR: Upload length mismatch. Received ")) + String(expectedIndex) +
+                   F(" bytes out of ") + String(totalLen) + F(" bytes."));
+            CloseSdFile(fsUploadFileHandle);
+            RestoreUploadOutputState();
+            DeleteSdFile(fsUploadFileName);
+            expectedIndex = 0;
+            fsUploadFileName.clear();
+            return false;
+        }
+
         // DEBUG_V(String("fsUploadFileName: ") + String(fsUploadFileName));
         // cause the remainder in the buffer to be written.
         const bool FinalFlushOk = (0 == FileList[FileListFindSdFileHandle(fsUploadFileHandle)].buffer.offset) ||
