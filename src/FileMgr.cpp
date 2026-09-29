@@ -1600,6 +1600,12 @@ uint64_t c_FileMgr::ReadSdFile (const FileId& FileHandle, byte* FileData, uint64
 
     uint64_t response = 0;
 
+    if((0 != NumBytesToRead) && (nullptr == FileData))
+    {
+        logcon(F("ReadSdFile::ERROR::Null destination buffer"));
+        return 0;
+    }
+
     // DEBUG_V (String ("       FileHandle: ") + String (FileHandle));
     // DEBUG_V (String ("   NumBytesToRead: ") + String (NumBytesToRead));
     // DEBUG_V (String (" StartingPosition: ") + String (StartingPosition));
@@ -1685,6 +1691,12 @@ uint64_t c_FileMgr::WriteSdFile (const FileId& FileHandle, byte* FileData, uint6
     // DEBUG_START;
 
     uint64_t NumBytesWritten = 0;
+    if((0 != NumBytesToWrite) && (nullptr == FileData))
+    {
+        logcon(F("WriteSdFile::ERROR::Null source buffer"));
+        return 0;
+    }
+
     do // once
     {
         int FileListIndex;
@@ -1738,6 +1750,12 @@ uint64_t c_FileMgr::WriteSdFileBuf (const FileId& FileHandle, byte* FileData, ui
     // DEBUG_START;
 
     uint64_t NumBytesWrittenToDestBuffer = 0;
+    if((0 != NumBytesInSourceBuffer) && (nullptr == FileData))
+    {
+        logcon(F("WriteSdFileBuf::ERROR::Null source buffer"));
+        return 0;
+    }
+
     bool ForceWriteToSD = (0 == NumBytesInSourceBuffer);
     do // once
     {
