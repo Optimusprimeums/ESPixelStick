@@ -2026,30 +2026,11 @@ void c_FileMgr::BuildFseqList(bool DisplayFileNames)
                 {
                     logcon (String(F("SD File: '")) + EntryName + "'   " + String(CurrentEntry.size ()));
                 }
-                uint16_t Date;
-                uint16_t Time;
-                // CurrentEntry.getCreateDateTime (&Date, &Time);
-                // DEBUG_V(String("Date: ") + String(Date));
-                // DEBUG_V(String("Year: ") + String(FS_YEAR(Date)));
-                // DEBUG_V(String("Day: ") + String(FS_DAY(Date)));
-                // DEBUG_V(String("Month: ") + String(FS_MONTH(Date)));
-
-                // DEBUG_V(String("Time: ") + String(Time));
-                // DEBUG_V(String("Hours: ") + String(FS_HOUR(Time)));
-                // DEBUG_V(String("Minutes: ") + String(FS_MINUTE(Time)));
-                // DEBUG_V(String("Seconds: ") + String(FS_SECOND(Time)));
-
-                tmElements_t tm;
-                tm.Year = FS_YEAR(Date) - 1970;
-                tm.Month = FS_MONTH(Date);
-                tm.Day = FS_DAY(Date);
-                tm.Hour = FS_HOUR(Time);
-                tm.Minute = FS_MINUTE(Time);
-                tm.Second = FS_SECOND(Time);
-
-                // DEBUG_V(String("tm: ") + String(time_t(makeTime(tm))));
+                // Arduino FS does not expose the SdFat create-date API used by
+                // the physical-SD path. Report an unknown timestamp rather than
+                // decoding uninitialized FAT date/time values.
                 jsonDocFileList[FileIndex]["name"] = EntryName;
-                jsonDocFileList[FileIndex]["date"] = makeTime(tm);
+                jsonDocFileList[FileIndex]["date"] = 0;
                 jsonDocFileList[FileIndex]["length"] = CurrentEntry.size ();
                 ++FileIndex;
             }
