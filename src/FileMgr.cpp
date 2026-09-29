@@ -2456,7 +2456,15 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
 
     // Open the file for writing
     // DEBUG_V(String("fsUploadFileName: ") + String(fsUploadFileName));
-    OpenSdFile (fsUploadFileName, FileMode::FileWrite, fsUploadFileHandle, -1 /*first access*/);
+    if(!OpenSdFile (fsUploadFileName, FileMode::FileWrite, fsUploadFileHandle, -1 /*first access*/))
+    {
+        logcon(String(F("ERROR: Could not create upload file '")) + fsUploadFileName + F("'."));
+        RestoreUploadOutputState();
+        fsUploadFileHandle = INVALID_FILE_HANDLE;
+        fsUploadFileName.clear();
+        return;
+    }
+
     int FileListIndex;
     if (-1 == (FileListIndex = FileListFindSdFileHandle (fsUploadFileHandle)))
     {
