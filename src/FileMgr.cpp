@@ -1704,6 +1704,10 @@ uint64_t c_FileMgr::WriteSdFile (const FileId& FileHandle, byte* FileData, uint6
         NumBytesWritten = FileList[FileListIndex].fsFile.write((uint8_t*)FileData, NumBytesToWrite);
         // DEBUG_V();
         FileList[FileListIndex].fsFile.flush();
+        if(NumBytesWritten == NumBytesToWrite)
+        {
+            FileList[FileListIndex].size = FileList[FileListIndex].fsFile.size();
+        }
         // DEBUG_V();
         UnLockSd();
         FeedWDT();
