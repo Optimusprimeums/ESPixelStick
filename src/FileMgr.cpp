@@ -1864,8 +1864,13 @@ uint64_t c_FileMgr::WriteSdFile (const FileId& FileHandle, byte* FileData, uint6
         // DEBUG_V (String ("      FileHandle: ") + String (FileHandle));
         // DEBUG_V (String ("     File.Handle: ") + String (FileList[FileListIndex].handle));
         LockSd();
-        FileList[FileListIndex].fsFile.seek (StartingPosition);
+        const bool SeekSucceeded = FileList[FileListIndex].fsFile.seek (StartingPosition);
         UnLockSd();
+        if(!SeekSucceeded)
+        {
+            logcon(String(F("WriteSdFile::ERROR::Could not seek to position ")) + String64(StartingPosition));
+            return 0;
+        }
         response = WriteSdFile (FileHandle, FileData, NumBytesToWrite, true);
     }
     else
