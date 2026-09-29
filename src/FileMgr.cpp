@@ -2356,8 +2356,19 @@ bool c_FileMgr::handleFileUpload (
         }
 
         // DEBUG_V(String("fsUploadFileName: ") + String(fsUploadFileName));
+        const int UploadFileListIndex = FileListFindSdFileHandle(fsUploadFileHandle);
+        if(-1 == UploadFileListIndex)
+        {
+            logcon(F("ERROR: Upload file handle became invalid before final SD flush."));
+            RestoreUploadOutputState();
+            expectedIndex = 0;
+            fsUploadFileHandle = INVALID_FILE_HANDLE;
+            fsUploadFileName.clear();
+            return false;
+        }
+
         // cause the remainder in the buffer to be written.
-        const bool FinalFlushOk = (0 == FileList[FileListFindSdFileHandle(fsUploadFileHandle)].buffer.offset) ||
+        const bool FinalFlushOk = (0 == FileList[UploadFileListIndex].buffer.offset) ||
                                   (0 != WriteSdFileBuf (fsUploadFileHandle, data, 0));
         if(!FinalFlushOk)
         {
