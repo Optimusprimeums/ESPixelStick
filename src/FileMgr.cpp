@@ -2345,7 +2345,20 @@ bool c_FileMgr::handleFileUpload (
     {
         // DEBUG_V(String("fsUploadFileName: ") + String(fsUploadFileName));
         // cause the remainder in the buffer to be written.
-        WriteSdFileBuf (fsUploadFileHandle, data, 0);
+        const bool FinalFlushOk = (0 == FileList[FileListFindSdFileHandle(fsUploadFileHandle)].buffer.offset) ||
+                                  (0 != WriteSdFileBuf (fsUploadFileHandle, data, 0));
+        if(!FinalFlushOk)
+        {
+            logcon(String(F("ERROR: Final SD flush failed for '")) + fsUploadFileName + F("'."));
+            CloseSdFile(fsUploadFileHandle);
+            RestoreUploadOutputState();
+            DeleteSdFile(fsUploadFileName);
+            expectedIndex = 0;
+            fsUploadFileName.clear();
+            response = false;
+            return response;
+        }
+
         uint32_t uploadTime = (uint32_t)(millis() - fsUploadStartTime) / 1000;
         FeedWDT();
          // DEBUG_FILE_HANDLE (fsUploadFileHandle);
