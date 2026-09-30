@@ -1365,7 +1365,7 @@ void c_FileMgr::SaveSdFile (const String & FileName, String & FileData)
     do // once
     {
         FileId FileHandle = INVALID_FILE_HANDLE;
-        if (false == OpenSdFile (FileName, FileMode::FileWrite, FileHandle, -1))
+        if (false == OpenSdFile (FileName, FileMode::FileWrite, FileHandle))
         {
             logcon (String (F ("Could not open '")) + FileName + F ("' for writting."));
             break;
@@ -1394,7 +1394,7 @@ void c_FileMgr::SaveSdFile (const String & FileName, JsonVariant & FileData)
 } // SaveSdFile
 
 //-----------------------------------------------------------------------------
-bool c_FileMgr::OpenSdFile (const String & _FileName, FileMode Mode, FileId & FileHandle, int FileListIndex)
+bool c_FileMgr::OpenSdFile (const String & _FileName, FileMode Mode, FileId & FileHandle)
 {
     // DEBUG_START;
     // DEBUG_V(String("Mode: ") + String(Mode));
@@ -1436,28 +1436,11 @@ bool c_FileMgr::OpenSdFile (const String & _FileName, FileMode Mode, FileId & Fi
             break;
         }
 
-        if((FileListIndex < -1) || (FileListIndex >= MaxOpenFiles))
-        {
-            logcon(String(F("OpenSdFile::ERROR::Invalid predefined file index: ")) + String(FileListIndex));
-            FileHandle = INVALID_FILE_HANDLE;
-            break;
-        }
+        FileHandle = CreateSdFileHandle ();
+        // DEBUG_V (String("FileHandle: ") + String(FileHandle));
 
-        // do we have a pre defined index?
-        if(-1 == FileListIndex)
-        {
-            // DEBUG_V("No predefined File Handle");
-            FileHandle = CreateSdFileHandle ();
-            // DEBUG_V (String("FileHandle: ") + String(FileHandle));
-
-            FileListIndex = FileListFindSdFileHandle (FileHandle);
-            // DEBUG_V(String("Using lookup File Index: ") + String(FileListIndex));
-        }
-        else
-        {
-            // DEBUG_V(String("Using predefined File Index: ") + String(FileListIndex));
-            FileHandle = FileList[FileListIndex].handle;
-        }
+        int FileListIndex = FileListFindSdFileHandle (FileHandle);
+        // DEBUG_V(String("Using lookup File Index: ") + String(FileListIndex));
 
         // DEBUG_V("did we get an index");
         if (-1 != FileListIndex)
@@ -1528,7 +1511,7 @@ bool c_FileMgr::ReadSdFile (const String & FileName, String & FileData)
     FileId FileHandle = INVALID_FILE_HANDLE;
 
     // DEBUG_V (String("File '") + FileName + "' is being opened.");
-    if (true == OpenSdFile (FileName, FileMode::FileRead, FileHandle, -1))
+    if (true == OpenSdFile (FileName, FileMode::FileRead, FileHandle))
     {
         // DEBUG_V (String("File '") + FileName + "' is open.");
         int FileListIndex;
@@ -1567,7 +1550,7 @@ bool c_FileMgr::ReadSdFile (const String & FileName, JsonDocument & FileData)
     FileId FileHandle = INVALID_FILE_HANDLE;
 
     // DEBUG_V (String("File '") + FileName + "' is being opened.");
-    if (true == OpenSdFile (FileName, FileMode::FileRead, FileHandle, -1))
+    if (true == OpenSdFile (FileName, FileMode::FileRead, FileHandle))
     {
         // DEBUG_V (String("File '") + FileName + "' is open.");
         int FileListIndex;
@@ -1925,7 +1908,7 @@ uint64_t c_FileMgr::GetSdFileSize (const String& FileName)
     // DEBUG_START;
     uint64_t response = 0;
     FileId Handle = INVALID_FILE_HANDLE;
-    if(OpenSdFile (FileName, FileMode::FileRead, Handle, -1))
+    if(OpenSdFile (FileName, FileMode::FileRead, Handle))
     {
         response = GetSdFileSize(Handle);
         // DEBUG_FILE_HANDLE (Handle);
@@ -2491,7 +2474,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
 
     // Open the file for writing
     // DEBUG_V(String("fsUploadFileName: ") + String(fsUploadFileName));
-    if(!OpenSdFile (fsUploadFileName, FileMode::FileWrite, fsUploadFileHandle, -1 /*first access*/))
+    if(!OpenSdFile (fsUploadFileName, FileMode::FileWrite, fsUploadFileHandle))
     {
         logcon(String(F("ERROR: Could not create upload file '")) + fsUploadFileName + F("'."));
         RestoreUploadOutputState();
