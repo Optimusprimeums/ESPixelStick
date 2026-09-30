@@ -2138,6 +2138,8 @@ void c_FileMgr::BuildFseqList(bool DisplayFileNames)
 
     #endif // ndef SIMULATE_SD
 
+        SdCardUsedBytes = usedBytes;
+
         InputDir.close();
         UnLockSd();
 
@@ -2659,7 +2661,7 @@ bool c_FileMgr::IsCompressed(String FileName)
 void c_FileMgr::GetSdInfo(SdInfo & Response)
 {
     Response.MaxSize = SdCardSize;
-    // TODO Response.Used = ESP_SD..usedBytes();
+    Response.Used = min(SdCardUsedBytes, SdCardSize);
     Response.Available = SdCardSize - Response.Used;
 
 } // GetSdInfo
