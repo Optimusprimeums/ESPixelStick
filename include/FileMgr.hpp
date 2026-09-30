@@ -184,6 +184,7 @@ private:
     char     WelcomeString[65] = "ESPS V4 FTP";
     bool     FtpEnabled = true;
     uint64_t SdCardSize = 0;
+    uint64_t SdCardUsedBytes = 0;
     uint32_t MaxSdSpeed = MaxSdTransSpeedMHz;
     bool     FoundZipFile = false;
 
