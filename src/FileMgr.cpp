@@ -1429,6 +1429,13 @@ bool c_FileMgr::OpenSdFile (const String & _FileName, FileMode Mode, FileId & Fi
         }
         // DEBUG_V ("File Exists");
 
+        if((FileListIndex < -1) || (FileListIndex >= MaxOpenFiles))
+        {
+            logcon(String(F("OpenSdFile::ERROR::Invalid predefined file index: ")) + String(FileListIndex));
+            FileHandle = INVALID_FILE_HANDLE;
+            break;
+        }
+
         // do we have a pre defined index?
         if(-1 == FileListIndex)
         {
