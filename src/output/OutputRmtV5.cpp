@@ -485,6 +485,24 @@ size_t IRAM_ATTR c_OutputRmt::ISR_TransferIntensityDataToRMT (rmt_item32_t *symb
 } // ISR_TransferIntensityDataToRMT
 
 //----------------------------------------------------------------------------
+void c_OutputRmt::CompleteFrame ()
+{
+    // The TX-done callback marks end-of-wire completion. Reap the ESP-IDF
+    // transaction descriptor before making this channel available again.
+    esp_err_t WaitResult = rmt_tx_wait_all_done(rmt_channel_handle, 10);
+    if(ESP_OK != WaitResult)
+    {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(WaitResult);
+        TimeoutFrame();
+        return;
+    }
+
+    FrameInFlight = false;
+    FrameEncodingComplete = false;
+    ++ChannelFrameCompletes;
+}
+
+//----------------------------------------------------------------------------
 void c_OutputRmt::TimeoutFrame ()
 {
     // A timeout means software can no longer trust the driver's queued
