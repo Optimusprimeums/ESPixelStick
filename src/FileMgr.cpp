@@ -2304,6 +2304,11 @@ bool c_FileMgr::handleFileUpload (
             // DEBUG_V("New File");
             handleFileUploadNewFile (filename);
             expectedIndex = 0;
+            if(fsUploadFileHandle == INVALID_FILE_HANDLE)
+            {
+                logcon(String(F("ERROR: Upload initialization failed for '")) + filename + F("'."));
+                break;
+            }
             // LOG_PORT.println(".");
         }
 
