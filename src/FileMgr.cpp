@@ -1968,6 +1968,7 @@ void c_FileMgr::RenameSdFile(const String & OldName, const String & NewName)
     }
     UnLockSd();
 #endif // ndef SIMULATE_SD
+    BuildFseqList(false);
     // DEBUG_END;
 } // RenameSdFile
 
