@@ -2490,7 +2490,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
     if (-1 == (FileListIndex = FileListFindSdFileHandle (fsUploadFileHandle)))
     {
         logcon (String (F ("WriteSdFileBuf::ERROR::Invalid File Handle: ")) + String (fsUploadFileHandle));
-            CloseSdFile(fsUploadFileHandle);
+        CloseSdFile(fsUploadFileHandle);
         DeleteSdFile(fsUploadFileName);
         RestoreUploadOutputState();
         expectedIndex = 0;
