@@ -2000,7 +2000,8 @@ void c_FileMgr::BuildFseqList(bool DisplayFileNames)
 
         LockSd();
 #ifdef SIMULATE_SD
-        JsonWrite(jsonDoc, "usedBytes", ESP_SD.usedBytes());
+        usedBytes = ESP_SD.usedBytes();
+        JsonWrite(jsonDoc, "usedBytes", usedBytes);
         File InputDir = ESP_SD.open (CN_slashsd, CN_r);
 #else
         ESP_SD.chdir();
