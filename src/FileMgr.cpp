@@ -1890,7 +1890,7 @@ uint64_t c_FileMgr::WriteSdFile (const FileId& FileHandle, byte* FileData, uint6
         UnLockSd();
         if(!SeekSucceeded)
         {
-            logcon(String(F("WriteSdFile::ERROR::Could not seek to position ")) + String64(StartingPosition));
+            logcon(String(F("WriteSdFile::ERROR::Could not seek to position ")) + int64String(StartingPosition));
             return 0;
         }
         response = WriteSdFile (FileHandle, FileData, NumBytesToWrite, true);
