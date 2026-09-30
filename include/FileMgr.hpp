@@ -97,7 +97,7 @@ public:
     void     DeleteSdFile     (const String & FileName);
     void     SaveSdFile       (const String & FileName, String & FileData);
     void     SaveSdFile       (const String & FileName, JsonVariant & FileData);
-    bool     OpenSdFile       (const String & FileName, FileMode Mode, FileId & FileHandle, int FileListIndex);
+    bool     OpenSdFile       (const String & FileName, FileMode Mode, FileId & FileHandle);
     uint64_t ReadSdFile       (const FileId & FileHandle, byte * FileData, uint64_t NumBytesToRead, uint64_t StartingPosition);
     bool     ReadSdFile       (const String & FileName,   String & FileData);
     bool     ReadSdFile       (const String & FileName,   JsonDocument & FileData);
