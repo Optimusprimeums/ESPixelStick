@@ -41,7 +41,7 @@ const int8_t DISABLE_CS_PIN = -1;
 #ifdef SIMULATE_SD
 char XlateFileMode[3] = { CN_r[0], CN_w[0], CN_w[0] };
 #else
-oflag_t XlateFileMode[3] = { O_READ , O_WRITE | O_CREAT, O_WRITE | O_APPEND };
+oflag_t XlateFileMode[3] = { O_READ , O_WRITE | O_CREAT | O_TRUNC, O_WRITE | O_APPEND };
 #endif // def SIMULATE_SD
 
 #ifdef SUPPORT_FTP
