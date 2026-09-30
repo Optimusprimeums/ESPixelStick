@@ -131,7 +131,7 @@ public:
     bool IsFrameComplete    () const { return FrameEncodingComplete; }
     void IRAM_ATTR MarkFrameTransmissionCompleteFromISR () { FrameEncodingComplete = true; }
     uint32_t GetFrameStartTick () const { return FrameStartTick; }
-    void CompleteFrame      () { FrameInFlight = false; FrameEncodingComplete = false; ++ChannelFrameCompletes; }
+    void CompleteFrame      ();
     void TimeoutFrame       ();
     void NoteConcurrentStart() { ++ConcurrentFrameStarts; }
 #else
