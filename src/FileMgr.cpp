@@ -1429,6 +1429,13 @@ bool c_FileMgr::OpenSdFile (const String & _FileName, FileMode Mode, FileId & Fi
         }
         // DEBUG_V ("File Exists");
 
+        if((Mode < FileMode::FileRead) || (Mode > FileMode::FileAppend))
+        {
+            logcon(String(F("OpenSdFile::ERROR::Invalid file mode: ")) + String(static_cast<int>(Mode)));
+            FileHandle = INVALID_FILE_HANDLE;
+            break;
+        }
+
         if((FileListIndex < -1) || (FileListIndex >= MaxOpenFiles))
         {
             logcon(String(F("OpenSdFile::ERROR::Invalid predefined file index: ")) + String(FileListIndex));
