@@ -269,6 +269,13 @@ void c_OutputRmt::GetStatus (ArduinoJson::JsonObject& jsonStatus)
     // // DEBUG_START;
 
     jsonStatus[F("NumRmtSlotOverruns")] = NumRmtSlotOverruns;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    jsonStatus[F("RmtFrameStarts")] = ChannelFrameStarts;
+    jsonStatus[F("RmtFrameCompletes")] = ChannelFrameCompletes;
+    jsonStatus[F("RmtFrameTimeouts")] = ChannelFrameTimeouts;
+    jsonStatus[F("RmtConcurrentStarts")] = ConcurrentFrameStarts;
+    jsonStatus[F("RmtFrameInFlight")] = FrameInFlight;
+#endif
 #ifdef USE_RMT_DEBUG_COUNTERS
     jsonStatus[F("OutputIsPaused")] = OutputIsPaused;
     JsonObject debugStatus = jsonStatus["RMT Debug"].to<JsonObject>();
@@ -603,6 +610,7 @@ bool c_OutputRmt::StartNewFrame ()
         // DEBUG_V(String("   NumBytesInFrame: ") + String(uint32_t(OutputRmtConfig.NumBytesInFrame)));
         FrameEncodingComplete = false;
         FrameInFlight = true;
+        ++ChannelFrameStarts;
         FrameStartTick = xTaskGetTickCount();
         esp_err_t TransmitResult = rmt_transmit(rmt_channel_handle, rmt_encoder_handle, OutputRmtConfig.BufferStart, OutputRmtConfig.NumBytesInFrame, &tx_config);
         if(ESP_OK != TransmitResult)
