@@ -2518,6 +2518,15 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         FileList[FileListIndex].buffer.size = min(uint32_t(OutputMgr.GetBufferSize() & ~(SD_BLOCK_SIZE - 1)), uint32_t(MAX_SD_BUFFER_SIZE));
         UploadBorrowedOutputBuffer = false;
 
+        if(0 == FileList[FileListIndex].buffer.size)
+        {
+            // No block-aligned scratch space is available. Leave buffering
+            // disabled; WriteSdFileBuf() already supports direct SD writes.
+            FileList[FileListIndex].buffer.DataBuffer = nullptr;
+            logcon(F("SD upload scratch buffer unavailable; using direct writes."));
+            return;
+        }
+
 #if defined(BOARD_HAS_PSRAM)
         // Upload scratch data is not timing-critical; keep it in PSRAM when available.
         FileList[FileListIndex].buffer.DataBuffer =
