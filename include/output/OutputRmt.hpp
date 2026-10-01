@@ -92,6 +92,7 @@ private:
     volatile bool       FrameInFlight               = false;
     volatile bool       FrameEncodingComplete       = false;
     uint32_t            FrameStartTick              = 0;
+    uint32_t            ChannelFrameStarts          = 0;
     uint32_t            ConcurrentFrameStarts       = 0;
     uint32_t            ChannelFrameCompletes       = 0;
     uint32_t            ChannelFrameTimeouts        = 0;
