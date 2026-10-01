@@ -112,7 +112,11 @@ private:
     void ISR_CreateIntensityData ();
     bool ISR_MoreDataToSend();
     void StartNewDataFrame();
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
     void ResetRmtBlockPointers(bool EnableChannel = true);
+#else
+    void ISR_ResetRmtBlockPointers();
+#endif
 
 #ifndef HasBeenInitialized
     bool HasBeenInitialized = false;
