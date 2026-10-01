@@ -1,5 +1,10 @@
 name: ESPixelStick CI
 on: [push, pull_request, workflow_dispatch]
+concurrency:
+  # Keep the latest push and pull-request validation independently while
+  # cancelling obsolete runs from older commits in the same stream.
+  group: espixelstick-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 env:
   VERSION_BASE: "4.0"
 jobs:
