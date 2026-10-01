@@ -288,6 +288,7 @@ public: struct __attribute__((__packed__, aligned(4))) CSD {
     uint32_t    expectedIndex = 0;
     bool        UploadBorrowedOutputBuffer = false;
     bool        UploadPreviousInputOperationalState = true;
+    bool        UploadPreviousOutputPausedState = false;
 
 #ifdef ARDUINO_ARCH_ESP32
     SemaphoreHandle_t SdAccessSemaphore = NULL;
