@@ -2461,7 +2461,7 @@ void c_FileMgr::RestoreUploadOutputState ()
     {
         OutputMgr.ClearBuffer();
         OutputMgr.PauseOutputs(false);
-        InputMgr.SetOperationalState(true);
+        InputMgr.SetOperationalState(UploadPreviousInputOperationalState);
         UploadBorrowedOutputBuffer = false;
     }
 }
@@ -2546,6 +2546,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         {
             // Non-fatal fallback to the proven legacy output-buffer path.
             FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
+            UploadPreviousInputOperationalState = InputMgr.IsOperational();
             UploadBorrowedOutputBuffer = true;
             OutputMgr.PauseOutputs(true);
             InputMgr.SetOperationalState(false);
@@ -2553,6 +2554,7 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
         }
 #else
         FileList[FileListIndex].buffer.DataBuffer = OutputMgr.ISR_GetBufferAddress();
+        UploadPreviousInputOperationalState = InputMgr.IsOperational();
         UploadBorrowedOutputBuffer = true;
         OutputMgr.PauseOutputs(true);
         InputMgr.SetOperationalState(false);
