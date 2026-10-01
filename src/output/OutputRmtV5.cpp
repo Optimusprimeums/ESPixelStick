@@ -55,8 +55,14 @@ void RMT_Task (void *arg)
             {
                 if(pRmt->IsFrameComplete())
                 {
-                    pRmt->CompleteFrame();
-                    ++FrameCompletes;
+                    if(pRmt->CompleteFrame())
+                    {
+                        ++FrameCompletes;
+                    }
+                    else
+                    {
+                        ++FrameTimeouts;
+                    }
                 }
                 else if((xTaskGetTickCount() - pRmt->GetFrameStartTick()) > pRmt->GetFrameTimeoutTicks())
                 {
@@ -485,7 +491,7 @@ size_t IRAM_ATTR c_OutputRmt::ISR_TransferIntensityDataToRMT (rmt_item32_t *symb
 } // ISR_TransferIntensityDataToRMT
 
 //----------------------------------------------------------------------------
-void c_OutputRmt::CompleteFrame ()
+bool c_OutputRmt::CompleteFrame ()
 {
     // The TX-done callback marks end-of-wire completion. Reap the ESP-IDF
     // transaction descriptor before making this channel available again.
@@ -494,12 +500,13 @@ void c_OutputRmt::CompleteFrame ()
     {
         ESP_ERROR_CHECK_WITHOUT_ABORT(WaitResult);
         TimeoutFrame();
-        return;
+        return false;
     }
 
     FrameInFlight = false;
     FrameEncodingComplete = false;
     ++ChannelFrameCompletes;
+    return true;
 }
 
 //----------------------------------------------------------------------------
