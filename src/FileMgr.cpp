@@ -2325,8 +2325,6 @@ bool c_FileMgr::handleFileUpload (
                 RestoreUploadOutputState();
                 // DEBUG_V(String("fsUploadFileName: ") + fsUploadFileName);
                 DeleteSdFile (fsUploadFileName);
-                delay(100);
-                BuildFseqList(false);
                 expectedIndex = 0;
                 fsUploadFileName.clear();
             }
