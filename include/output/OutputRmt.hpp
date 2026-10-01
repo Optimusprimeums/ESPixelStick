@@ -111,7 +111,7 @@ private:
     void ISR_CreateIntensityData ();
     bool ISR_MoreDataToSend();
     void StartNewDataFrame();
-    void ISR_ResetRmtBlockPointers();
+    void ResetRmtBlockPointers(bool EnableChannel = true);
 
 #ifndef HasBeenInitialized
     bool HasBeenInitialized = false;
