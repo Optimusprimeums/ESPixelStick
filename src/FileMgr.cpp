@@ -2467,10 +2467,19 @@ void c_FileMgr::handleFileUploadNewFile (const String & filename)
     // are we terminating the previous download?
     if (!fsUploadFileName.isEmpty())
     {
-        logcon (String (F ("Aborting Previous File Upload For: '")) + fsUploadFileName + String (F ("'")));
+        const String PreviousUploadFileName = fsUploadFileName;
+        logcon (String (F ("Aborting Previous File Upload For: '")) + PreviousUploadFileName + String (F ("'")));
         // DEBUG_FILE_HANDLE (fsUploadFileHandle);
-        CloseSdFile (fsUploadFileHandle);
+        if(fsUploadFileHandle != INVALID_FILE_HANDLE)
+        {
+            CloseSdFile (fsUploadFileHandle);
+        }
         RestoreUploadOutputState();
+
+        // A superseded upload is incomplete. Remove its partial file rather
+        // than exposing it as though it were a completed SD upload.
+        DeleteSdFile (PreviousUploadFileName);
+        expectedIndex = 0;
     }
 
     // Set up to receive a file
