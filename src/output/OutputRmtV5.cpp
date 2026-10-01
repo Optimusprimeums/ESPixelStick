@@ -58,7 +58,7 @@ void RMT_Task (void *arg)
                     pRmt->CompleteFrame();
                     ++FrameCompletes;
                 }
-                else if((xTaskGetTickCount() - pRmt->GetFrameStartTick()) > pdMS_TO_TICKS(100))
+                else if((xTaskGetTickCount() - pRmt->GetFrameStartTick()) > pRmt->GetFrameTimeoutTicks())
                 {
                     pRmt->TimeoutFrame();
                     ++FrameTimeouts;
