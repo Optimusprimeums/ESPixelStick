@@ -25,7 +25,7 @@ Being open source, you are free to use the ESPixelStick firmware on the device o
 
 The `esp32s3_devkitc` target is configured for an ESP32-S3-WROOM-1-N16R8 class module: 16 MB QSPI flash and 8 MB OPI PSRAM. Timing-critical output/RMT buffers remain in internal SRAM; PSRAM is reserved for non-real-time bulk allocations. GPIO 35-37 must not be assigned on N16R8 modules because they are used by the octal PSRAM interface.
 
-Runtime status exposes internal-RAM and PSRAM free space, minimum-ever free space and largest free blocks to diagnose fragmentation or memory pressure. RMT output status also reports per-channel frame starts, completions, timeouts, concurrent starts and in-flight state. SD uploads prefer a dedicated PSRAM scratch buffer; if allocation falls back to the output buffer, the pre-upload input operational state is restored when the upload completes or aborts.
+Runtime status exposes internal-RAM and PSRAM free space, minimum-ever free space and largest free blocks to diagnose fragmentation or memory pressure. RMT output status also reports per-channel frame starts, completions, timeouts, concurrent starts and in-flight state. SD uploads prefer a dedicated PSRAM scratch buffer; if allocation falls back to the output buffer, the pre-upload input operational state and output pause state are restored when the upload completes or aborts.
 
 ## Build Requirements
 
