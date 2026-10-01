@@ -2414,11 +2414,24 @@ bool c_FileMgr::handleFileUpload (
          // DEBUG_FILE_HANDLE (fsUploadFileHandle);
         CloseSdFile (fsUploadFileHandle);
 
+        const uint64_t FinalFileSize = GetSdFileSize(fsUploadFileName);
+        if(FinalFileSize != totalLen)
+        {
+            logcon(String(F("ERROR: Completed upload size mismatch for '")) + fsUploadFileName +
+                   F("'. Expected ") + String(totalLen) + F(" bytes, found ") +
+                   int64String(FinalFileSize) + F(" bytes."));
+            DeleteSdFile(fsUploadFileName);
+            expectedIndex = 0;
+            RestoreUploadOutputState();
+            fsUploadFileName.clear();
+            return false;
+        }
+
         logcon (String (F ("Upload File: '")) + fsUploadFileName +
                 F ("' Done (") + String (uploadTime) +
                 F ("s). Received: ") + String(expectedIndex) +
                 F(" Bytes out of ") + String(totalLen) +
-                F(" bytes. FileLen: ") + GetSdFileSize(filename));
+                F(" bytes. FileLen: ") + int64String(FinalFileSize));
 
         FeedWDT();
         expectedIndex = 0;
