@@ -234,7 +234,7 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
         tx_config.flags.eot_level = OutputRmtConfig.idle_level == rmt_idle_level_t::RMT_IDLE_LEVEL_HIGH;
 
         // reset the internal and external pointers to the start of the mem block
-        ISR_ResetRmtBlockPointers ();
+        ResetRmtBlockPointers();
         // DEBUG_V();
 
         if(!SendFrameTaskHandle)
@@ -442,7 +442,7 @@ size_t IRAM_ATTR c_OutputRmt::ISR_Handler (const void *data, size_t data_size,
 } // ISR_Handler
 
 //----------------------------------------------------------------------------
-inline void IRAM_ATTR c_OutputRmt::ISR_ResetRmtBlockPointers()
+inline void c_OutputRmt::ResetRmtBlockPointers(bool EnableChannel)
 {
     rmt_disable(rmt_channel_handle);
 
@@ -451,7 +451,10 @@ inline void IRAM_ATTR c_OutputRmt::ISR_ResetRmtBlockPointers()
     SendBufferReadIndex  = 0;
     NumUsedEntriesInSendBuffer = 0;
 
-    rmt_enable(rmt_channel_handle);
+    if(EnableChannel)
+    {
+        rmt_enable(rmt_channel_handle);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -515,7 +518,7 @@ void c_OutputRmt::TimeoutFrame ()
     // A timeout means software can no longer trust the driver's queued
     // transaction state. Disable/re-enable the channel to discard pending
     // hardware/driver work before allowing another frame to start.
-    ISR_ResetRmtBlockPointers();
+    ResetRmtBlockPointers();
     FrameInFlight = false;
     FrameEncodingComplete = false;
     ++ChannelFrameTimeouts;
@@ -540,7 +543,8 @@ void c_OutputRmt::PauseOutput(bool PauseOutput)
     {
         FrameInFlight = false;
         FrameEncodingComplete = false;
-        ISR_ResetRmtBlockPointers();
+        // A paused output must leave the hardware transmitter disabled.
+        ResetRmtBlockPointers(false);
     }
 
     ///DEBUG_END;
@@ -558,14 +562,12 @@ bool c_OutputRmt::StartNewFrame ()
         if(OutputIsPaused)
         {
             // DEBUG_V("Paused");
-            // Stop the transmitter
-            rmt_disable(rmt_channel_handle);
-            ISR_ResetRmtBlockPointers ();
+            // PauseOutput() leaves the transmitter disabled.
             break;
         }
 
 		// Stop the transmitter
-        ISR_ResetRmtBlockPointers ();
+        ResetRmtBlockPointers();
 
         #ifdef USE_RMT_DEBUG_COUNTERS
         RMT_DEBUG_INC_COUNTER(FrameStartCounter);
