@@ -439,6 +439,28 @@ $(function ()
     $('#FileDeleteButton').on("click", (function () {
         RequestFileDeletion();
     }));
+
+    $('#CopyDiagnostics').on("click", async function () {
+        const snapshot = [
+            "ESPixelStick Diagnostics",
+            "Board: " + $('#diag_board').text(),
+            "Firmware: " + $('#version').text(),
+            "Uptime: " + $('#diag_uptime').text(),
+            "Free heap: " + $('#diag_freeheap').text(),
+            "Internal RAM free/min: " + $('#diag_internal').text(),
+            "PSRAM free/min: " + $('#diag_psram').text(),
+            "WiFi: " + $('#diag_wifi').text(),
+            "SD: " + $('#diag_sd').text(),
+            "SD capacity: " + $('#diag_sd_capacity').text()
+        ].join("\n");
+        try {
+            await navigator.clipboard.writeText(snapshot);
+            $('#CopyDiagnosticsResult').text("Diagnostics copied.");
+        }
+        catch(err) {
+            $('#CopyDiagnosticsResult').text("Clipboard unavailable in this browser.");
+        }
+    });
     /*
         $('#FileUploadButton').on("click", (function () {
             RequestFileUpload();
@@ -2291,6 +2313,7 @@ function ProcessReceivedJsonAdminMessage(data)
     $('#realflashsize').text(AdminInfo.realflashsize);
     $('#flashchipid').text(AdminInfo.flashchipid);
     $('#BoardName').text(AdminInfo.BoardName);
+    $('#diag_board').text(AdminInfo.BoardName + " / " + AdminInfo.arch);
 
     // Hide elements that are not applicable to our architecture
     if (AdminInfo.arch === "ESP8266") {
@@ -2327,6 +2350,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     $('#w_ip').text(Wifi.ip);
     $('#w_subnet').text(Wifi.subnet);
     $('#w_mac').text(Wifi.mac);
+    $('#diag_wifi').text(((true === Wifi.connected) ? "Connected" : "Disconnected") + " (" + rssi + " dBm)");
 
     if ({}.hasOwnProperty.call(Network, 'eth')) {
         $('#ethernet_status').removeClass("hidden")
@@ -2343,6 +2367,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
 
     // getHeap(data)
     $('#x_freeheap').text(System.freeheap);
+    $('#diag_freeheap').text(System.freeheap);
 
     if ({}.hasOwnProperty.call(System, 'HeapDetails'))
     {
@@ -2353,6 +2378,15 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         $('#n80C_Free_Tot').text(HeapDetails.n80C_Free_Tot);
         $('#n1800_Free_Max').text(HeapDetails.n1800_Free_Max);
         $('#n1800_Free_Tot').text(HeapDetails.n1800_Free_Tot);
+        $('#internal_free').text(HeapDetails.internal_free);
+        $('#internal_min_free').text(HeapDetails.internal_min_free);
+        $('#internal_max').text(HeapDetails.internal_max);
+        $('#psram_size').text(HeapDetails.psram_size);
+        $('#psram_free').text(HeapDetails.psram_free);
+        $('#psram_min_free').text(HeapDetails.psram_min_free);
+        $('#psram_max').text(HeapDetails.psram_max);
+        $('#diag_internal').text(HeapDetails.internal_free + " / " + HeapDetails.internal_min_free);
+        $('#diag_psram').text((undefined !== HeapDetails.psram_size) ? (HeapDetails.psram_free + " / " + HeapDetails.psram_min_free) : "Not available");
     }
 
     // getUptime
@@ -2371,6 +2405,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     str += ("0" + date.getUTCMinutes()).slice(-2) + ":";
     str += ("0" + date.getUTCSeconds()).slice(-2);
     $('#x_uptime').text(str);
+    $('#diag_uptime').text(str);
 
     date = new Date(1000 * System.currenttime);
     // console.debug("DateMS: " + date.getMilliseconds());
@@ -2411,9 +2446,12 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
 
     if (true === System.SDinstalled) {
         $("#li-filemanagement").removeClass("hidden");
+        $('#diag_sd').text("Installed");
     }
     else {
         $("#li-filemanagement").addClass("hidden");
+        $('#diag_sd').text("Not installed");
+        $('#diag_sd_capacity').text("N/A");
     }
 
     // getE131Status(data)
