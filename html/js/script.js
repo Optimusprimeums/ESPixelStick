@@ -390,6 +390,9 @@ $(function ()
                     // console.log("addedfile");
                     // console.log("File: " + file.name);
                     FseqFileTransferStartTime = new Date();
+                    $('#fseqprogresspercent').text("0%");
+                    $('#fseqprogressbytes').text("0");
+                    $('#fseqprogressrate').text("0KBps");
                 });
 
                 this.on('uploadprogress', function (file, percentProgress, bytesSent) {
@@ -401,7 +404,7 @@ $(function ()
 
                     let now = new Date().getTime();
                     let DeltaTime = (now - FseqFileTransferStartTime.getTime()) / 1000;
-                    let rate = Math.floor((bytesSent / DeltaTime) / 1000);
+                    let rate = (DeltaTime > 0) ? Math.floor((bytesSent / DeltaTime) / 1000) : 0;
                     $('#fseqprogressrate').html(rate + "KBps");
                 });
 
@@ -455,7 +458,8 @@ $(function ()
             "PSRAM free/min: " + $('#diag_psram').text(),
             "WiFi: " + $('#diag_wifi').text(),
             "SD: " + $('#diag_sd').text(),
-            "SD capacity: " + $('#diag_sd_capacity').text()
+            "SD capacity: " + $('#diag_sd_capacity').text(),
+            "RMT: " + $('#diag_rmt').text()
         ].join("\n");
         try {
             await navigator.clipboard.writeText(snapshot);
@@ -2397,6 +2401,14 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         $('#psram_max').text(HeapDetails.psram_max);
         $('#diag_internal').text(HeapDetails.internal_free + " / " + HeapDetails.internal_min_free);
         $('#diag_psram').text((undefined !== HeapDetails.psram_size) ? (HeapDetails.psram_free + " / " + HeapDetails.psram_min_free) : "Not available");
+        const InternalFree = Number(HeapDetails.internal_free || 0);
+        const InternalMax = Number(HeapDetails.internal_max || 0);
+        const PsramSize = Number(HeapDetails.psram_size || 0);
+        const PsramFree = Number(HeapDetails.psram_free || 0);
+        const InternalPressure = (InternalFree > 0) && ((InternalFree < 32768) || (InternalMax < 16384));
+        const PsramPressure = (PsramSize > 0) && (PsramFree < (PsramSize / 10));
+        $('#diag_internal').toggleClass('text-danger', InternalPressure);
+        $('#diag_psram').toggleClass('text-danger', PsramPressure);
     }
 
     // getUptime
@@ -2597,6 +2609,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         (RmtChannels + " channel(s), " + RmtCompletes + "/" + RmtStarts +
          " complete, " + RmtTimeouts + " timeout(s)"));
     $('#diag_rmt').toggleClass('text-danger', RmtTimeouts > 0);
+    $('#diag_rmt').toggleClass('text-success', (RmtChannels > 0) && (0 === RmtTimeouts));
 
     // Device Refresh is dynamic
     // #refresh is used in device config tab to reflect what refresh rate should be, not what it currently is
