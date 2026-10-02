@@ -357,6 +357,7 @@ $(function ()
             {
                 this.on('success', function (file) {
                     $('#fsequploadstatus').text("Upload complete: " + file.name).removeClass('text-danger').addClass('text-success');
+                    $('#fseqprogressbar').val(100);
                     // console.log("Success");
                     // console.log("File: " + file.name);
                     Dropzone.forElement('#filemanagementupload').removeAllFiles(true)
@@ -391,12 +392,14 @@ $(function ()
                     // console.log("File: " + file.name);
                     FseqFileTransferStartTime = new Date();
                     $('#fseqprogresspercent').text("0%");
+                    $('#fseqprogressbar').val(0);
                     $('#fseqprogressbytes').text("0");
                     $('#fseqprogressrate').text("0KBps");
                 });
 
                 this.on('uploadprogress', function (file, percentProgress, bytesSent) {
                     $('#fseqprogresspercent').text(Math.round(percentProgress) + "%");
+                    $('#fseqprogressbar').val(Math.round(percentProgress));
                     // console.log("percentProgress: " + percentProgress);
                     // console.log("bytesSent: " + bytesSent);
                     $('#fseqprogress_fg').removeClass("hidden");
