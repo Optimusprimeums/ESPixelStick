@@ -892,7 +892,7 @@ async function StartRequestingStatusUpdate()
 
 function RequestStatusUpdate()
 {
-    if ($('#home').is(':visible'))
+    if ($('#home').is(':visible') || $('#diag').is(':visible'))
     {
         // ask for a status update from the server
         let FileName = "XJ";
@@ -915,7 +915,7 @@ function RequestStatusUpdate()
             referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
             success: function(response)
             {
-                console.log("RequestStatusUpdate: " + JSON.stringify(response));
+                // Status polling is frequent; avoid logging the full payload on every refresh.
                 FailedToCompleteServerTransaction = 0;
                 ProcessReceivedJsonStatusMessage(response);
             },
