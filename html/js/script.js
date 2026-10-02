@@ -356,6 +356,7 @@ $(function ()
             init: function ()
             {
                 this.on('success', function (file) {
+                    $('#fsequploadstatus').text("Upload complete: " + file.name).removeClass('text-danger').addClass('text-success');
                     // console.log("Success");
                     // console.log("File: " + file.name);
                     Dropzone.forElement('#filemanagementupload').removeAllFiles(true)
@@ -385,12 +386,14 @@ $(function ()
                 });
 
                 this.on('addedfile', function (file) {
+                    $('#fsequploadstatus').text("Uploading: " + file.name).removeClass('text-danger text-success');
                     // console.log("addedfile");
                     // console.log("File: " + file.name);
                     FseqFileTransferStartTime = new Date();
                 });
 
                 this.on('uploadprogress', function (file, percentProgress, bytesSent) {
+                    $('#fseqprogresspercent').text(Math.round(percentProgress) + "%");
                     // console.log("percentProgress: " + percentProgress);
                     // console.log("bytesSent: " + bytesSent);
                     $('#fseqprogress_fg').removeClass("hidden");
@@ -403,6 +406,7 @@ $(function ()
                 });
 
                 this.on('error', function (file, msg) {
+                    $('#fsequploadstatus').text("Upload failed: " + file.name).removeClass('text-success').addClass('text-danger');
                     // console.log("error");
                     // console.log("File: " + file.name);
                     // console.log("msg: " + msg);
@@ -2571,6 +2575,28 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
             $('#PausedTimeRemaining').text(PlayerStatus.Paused.TimeRemaining);
         }
     }
+
+    let RmtStarts = 0;
+    let RmtCompletes = 0;
+    let RmtTimeouts = 0;
+    let RmtChannels = 0;
+    if(Array.isArray(Status.output))
+    {
+        Status.output.forEach(function(OutputStatus)
+        {
+            if({}.hasOwnProperty.call(OutputStatus, 'RmtFrameStarts'))
+            {
+                RmtChannels++;
+                RmtStarts += Number(OutputStatus.RmtFrameStarts || 0);
+                RmtCompletes += Number(OutputStatus.RmtFrameCompletes || 0);
+                RmtTimeouts += Number(OutputStatus.RmtFrameTimeouts || 0);
+            }
+        });
+    }
+    $('#diag_rmt').text((0 === RmtChannels) ? "Not reported" :
+        (RmtChannels + " channel(s), " + RmtCompletes + "/" + RmtStarts +
+         " complete, " + RmtTimeouts + " timeout(s)"));
+    $('#diag_rmt').toggleClass('text-danger', RmtTimeouts > 0);
 
     // Device Refresh is dynamic
     // #refresh is used in device config tab to reflect what refresh rate should be, not what it currently is
