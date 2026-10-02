@@ -744,6 +744,8 @@ function SendConfigFileToServer(FileName, DataString)
 function ProcessWindowChange(NextWindow) {
 
     if (NextWindow === "#diag") {
+        RequestListOfFiles();
+        RequestConfigFile("admininfo.json");
     }
 
     else if (NextWindow === "#admin")
@@ -987,6 +989,10 @@ async function ProcessGetFileListResponse(JsonData) {
     $("#usedBytes").val(BytesToMB(JsonData.usedBytes));
     $("#remainingBytes").val(BytesToMB(JsonData.totalBytes - JsonData.usedBytes));
     $("#filecount").val(JsonData.numFiles);
+    $('#diag_sd').text(SdCardIsInstalled ? "Installed" : "Not installed");
+    $('#diag_sd_capacity').text(SdCardIsInstalled ?
+        (BytesToMB(JsonData.usedBytes) + " MB used / " + BytesToMB(JsonData.totalBytes) + " MB total") :
+        "N/A");
 
     // console.debug("totalBytes: " + JsonConfigData.totalBytes);
     // console.debug("usedBytes: " + JsonConfigData.usedBytes);
