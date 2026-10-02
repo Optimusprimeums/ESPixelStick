@@ -27,6 +27,8 @@ The `esp32s3_devkitc` target is configured for an ESP32-S3-WROOM-1-N16R8 class m
 
 Runtime status exposes internal-RAM and PSRAM free space, minimum-ever free space and largest free blocks to diagnose fragmentation or memory pressure. RMT output status also reports per-channel frame starts, completions, timeouts, concurrent starts and in-flight state. SD uploads prefer a dedicated PSRAM scratch buffer; if allocation falls back to the output buffer, the pre-upload input operational state and output pause state are restored when the upload completes or aborts.
 
+The web Diagnostics page surfaces these health values directly, highlights internal-RAM/PSRAM pressure and RMT timeouts, reports SD capacity and upload progress, and provides a **Copy Diagnostics** action for support captures. These indicators are operational aids rather than substitutes for hardware validation on the target board.
+
 ## Build Requirements
 
 The recommended way to build ESPixelStick is with PlatformIO. Building from the Arduino IDE is no longer supported.
