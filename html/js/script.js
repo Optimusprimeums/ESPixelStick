@@ -454,6 +454,8 @@ $(function ()
         const snapshot = [
             "ESPixelStick Diagnostics",
             "Board: " + $('#diag_board').text(),
+            "Firmware / build: " + $('#diag_firmware').text(),
+            "Flash: " + $('#diag_flash').text(),
             "Firmware: " + $('#version').text(),
             "Uptime: " + $('#diag_uptime').text(),
             "Free heap: " + $('#diag_freeheap').text(),
@@ -2334,6 +2336,8 @@ function ProcessReceivedJsonAdminMessage(data)
     $('#flashchipid').text(AdminInfo.flashchipid);
     $('#BoardName').text(AdminInfo.BoardName);
     $('#diag_board').text(AdminInfo.BoardName + " / " + AdminInfo.arch);
+    $('#diag_firmware').text(AdminInfo.version + " / " + AdminInfo.built);
+    $('#diag_flash').text(AdminInfo.realflashsize + " total / " + AdminInfo.usedflashsize + " used");
 
     // Hide elements that are not applicable to our architecture
     if (AdminInfo.arch === "ESP8266") {
