@@ -460,6 +460,8 @@ $(function ()
             "Internal RAM free/min: " + $('#diag_internal').text(),
             "PSRAM free/min: " + $('#diag_psram').text(),
             "WiFi: " + $('#diag_wifi').text(),
+            "WiFi address: " + $('#diag_wifi_address').text(),
+            "Ethernet: " + $('#diag_eth').text(),
             "SD: " + $('#diag_sd').text(),
             "SD capacity: " + $('#diag_sd_capacity').text(),
             "RMT: " + $('#diag_rmt').text(),
@@ -2369,6 +2371,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     $('#w_subnet').text(Wifi.subnet);
     $('#w_mac').text(Wifi.mac);
     $('#diag_wifi').text(((true === Wifi.connected) ? "Connected" : "Disconnected") + " (" + rssi + " dBm)");
+    $('#diag_wifi_address').text((Wifi.hostname || "unknown") + " / " + (Wifi.ip || "no address"));
 
     if ({}.hasOwnProperty.call(Network, 'eth')) {
         $('#ethernet_status').removeClass("hidden")
@@ -2378,9 +2381,12 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         $('#e_ip').text(Ethernet.ip);
         $('#e_subnet').text(Ethernet.subnet);
         $('#e_mac').text(Ethernet.mac);
+        $('#diag_eth').text(((true === Ethernet.connected) ? "Connected" : "Disconnected") +
+            " / " + (Ethernet.ip || "no address"));
     }
     else {
         $('#ethernet_status').addClass("hidden")
+        $('#diag_eth').text("Not available");
     }
 
     // getHeap(data)
