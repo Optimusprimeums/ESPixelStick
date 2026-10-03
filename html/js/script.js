@@ -2415,6 +2415,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         $('#psram_max').text(HeapDetails.psram_max);
         $('#diag_internal').text(HeapDetails.internal_free + " / " + HeapDetails.internal_min_free);
         $('#diag_psram').text((undefined !== HeapDetails.psram_size) ? (HeapDetails.psram_free + " / " + HeapDetails.psram_min_free) : "Not available");
+        $('#diag_psram').toggleClass('text-muted', !(Number(HeapDetails.psram_size) > 0));
         const InternalFree = Number(HeapDetails.internal_free || 0);
         const InternalMax = Number(HeapDetails.internal_max || 0);
         const PsramSize = Number(HeapDetails.psram_size || 0);
@@ -2633,6 +2634,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     $('#diag_rmt').toggleClass('text-success', (RmtChannels > 0) && (0 === RmtTimeouts));
     $('#diag_rmt_channels').text((0 === RmtChannels) ? "Not reported" : RmtChannelDetails.join(" | "));
     $('#diag_rmt_channels').toggleClass('text-danger', RmtTimeouts > 0);
+    $('#diag_rmt_channels').toggleClass('text-success', (RmtChannels > 0) && (0 === RmtTimeouts));
 
     // Device Refresh is dynamic
     // #refresh is used in device config tab to reflect what refresh rate should be, not what it currently is
