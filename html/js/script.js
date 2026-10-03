@@ -462,7 +462,8 @@ $(function ()
             "WiFi: " + $('#diag_wifi').text(),
             "SD: " + $('#diag_sd').text(),
             "SD capacity: " + $('#diag_sd_capacity').text(),
-            "RMT: " + $('#diag_rmt').text()
+            "RMT: " + $('#diag_rmt').text(),
+            "RMT channels: " + $('#diag_rmt_channels').text()
         ].join("\n");
         try {
             await navigator.clipboard.writeText(snapshot);
@@ -2595,6 +2596,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     let RmtCompletes = 0;
     let RmtTimeouts = 0;
     let RmtChannels = 0;
+    let RmtChannelDetails = [];
     if(Array.isArray(Status.output))
     {
         Status.output.forEach(function(OutputStatus)
@@ -2605,6 +2607,12 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
                 RmtStarts += Number(OutputStatus.RmtFrameStarts || 0);
                 RmtCompletes += Number(OutputStatus.RmtFrameCompletes || 0);
                 RmtTimeouts += Number(OutputStatus.RmtFrameTimeouts || 0);
+                RmtChannelDetails.push("#" + RmtChannels + ": " +
+                    Number(OutputStatus.RmtFrameCompletes || 0) + "/" +
+                    Number(OutputStatus.RmtFrameStarts || 0) + " complete, " +
+                    Number(OutputStatus.RmtFrameTimeouts || 0) + " timeout(s), " +
+                    Number(OutputStatus.RmtConcurrentStarts || 0) + " concurrent" +
+                    ((true === OutputStatus.RmtFrameInFlight) ? ", in flight" : ""));
             }
         });
     }
@@ -2613,6 +2621,8 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
          " complete, " + RmtTimeouts + " timeout(s)"));
     $('#diag_rmt').toggleClass('text-danger', RmtTimeouts > 0);
     $('#diag_rmt').toggleClass('text-success', (RmtChannels > 0) && (0 === RmtTimeouts));
+    $('#diag_rmt_channels').text((0 === RmtChannels) ? "Not reported" : RmtChannelDetails.join(" | "));
+    $('#diag_rmt_channels').toggleClass('text-danger', RmtTimeouts > 0);
 
     // Device Refresh is dynamic
     // #refresh is used in device config tab to reflect what refresh rate should be, not what it currently is
