@@ -356,6 +356,8 @@ $(function ()
             init: function ()
             {
                 this.on('success', function (file) {
+                    $('#fsequploadstatus').text("Upload complete: " + file.name).removeClass('text-danger').addClass('text-success');
+                    $('#fseqprogressbar').val(100);
                     // console.log("Success");
                     // console.log("File: " + file.name);
                     Dropzone.forElement('#filemanagementupload').removeAllFiles(true)
@@ -385,12 +387,19 @@ $(function ()
                 });
 
                 this.on('addedfile', function (file) {
+                    $('#fsequploadstatus').text("Uploading: " + file.name).removeClass('text-danger text-success');
                     // console.log("addedfile");
                     // console.log("File: " + file.name);
                     FseqFileTransferStartTime = new Date();
+                    $('#fseqprogresspercent').text("0%");
+                    $('#fseqprogressbar').val(0);
+                    $('#fseqprogressbytes').text("0");
+                    $('#fseqprogressrate').text("0KBps");
                 });
 
                 this.on('uploadprogress', function (file, percentProgress, bytesSent) {
+                    $('#fseqprogresspercent').text(Math.round(percentProgress) + "%");
+                    $('#fseqprogressbar').val(Math.round(percentProgress));
                     // console.log("percentProgress: " + percentProgress);
                     // console.log("bytesSent: " + bytesSent);
                     $('#fseqprogress_fg').removeClass("hidden");
@@ -398,11 +407,12 @@ $(function ()
 
                     let now = new Date().getTime();
                     let DeltaTime = (now - FseqFileTransferStartTime.getTime()) / 1000;
-                    let rate = Math.floor((bytesSent / DeltaTime) / 1000);
+                    let rate = (DeltaTime > 0) ? Math.floor((bytesSent / DeltaTime) / 1000) : 0;
                     $('#fseqprogressrate').html(rate + "KBps");
                 });
 
                 this.on('error', function (file, msg) {
+                    $('#fsequploadstatus').text("Upload failed: " + file.name).removeClass('text-success').addClass('text-danger');
                     // console.log("error");
                     // console.log("File: " + file.name);
                     // console.log("msg: " + msg);
@@ -439,6 +449,34 @@ $(function ()
     $('#FileDeleteButton').on("click", (function () {
         RequestFileDeletion();
     }));
+
+    $('#CopyDiagnostics').on("click", async function () {
+        const snapshot = [
+            "ESPixelStick Diagnostics",
+            "Board: " + $('#diag_board').text(),
+            "Firmware / build: " + $('#diag_firmware').text(),
+            "Flash: " + $('#diag_flash').text(),
+            "Firmware: " + $('#diag_firmware').text(),
+            "Uptime: " + $('#diag_uptime').text(),
+            "Free heap: " + $('#diag_freeheap').text(),
+            "Internal RAM free/min: " + $('#diag_internal').text(),
+            "PSRAM free/min: " + $('#diag_psram').text(),
+            "WiFi: " + $('#diag_wifi').text(),
+            "WiFi address: " + $('#diag_wifi_address').text(),
+            "Ethernet: " + $('#diag_eth').text(),
+            "SD: " + $('#diag_sd').text(),
+            "SD capacity: " + $('#diag_sd_capacity').text(),
+            "RMT: " + $('#diag_rmt').text(),
+            "RMT channels: " + $('#diag_rmt_channels').text()
+        ].join("\n");
+        try {
+            await navigator.clipboard.writeText(snapshot);
+            $('#CopyDiagnosticsResult').text("Diagnostics copied.");
+        }
+        catch(err) {
+            $('#CopyDiagnosticsResult').text("Clipboard unavailable in this browser.");
+        }
+    });
     /*
         $('#FileUploadButton').on("click", (function () {
             RequestFileUpload();
@@ -722,6 +760,8 @@ function SendConfigFileToServer(FileName, DataString)
 function ProcessWindowChange(NextWindow) {
 
     if (NextWindow === "#diag") {
+        RequestListOfFiles();
+        RequestConfigFile("admininfo.json");
     }
 
     else if (NextWindow === "#admin")
@@ -864,7 +904,7 @@ async function StartRequestingStatusUpdate()
 
 function RequestStatusUpdate()
 {
-    if ($('#home').is(':visible'))
+    if ($('#home').is(':visible') || $('#diag').is(':visible'))
     {
         // ask for a status update from the server
         let FileName = "XJ";
@@ -887,7 +927,7 @@ function RequestStatusUpdate()
             referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
             success: function(response)
             {
-                console.log("RequestStatusUpdate: " + JSON.stringify(response));
+                // Status polling is frequent; avoid logging the full payload on every refresh.
                 FailedToCompleteServerTransaction = 0;
                 ProcessReceivedJsonStatusMessage(response);
             },
@@ -965,6 +1005,10 @@ async function ProcessGetFileListResponse(JsonData) {
     $("#usedBytes").val(BytesToMB(JsonData.usedBytes));
     $("#remainingBytes").val(BytesToMB(JsonData.totalBytes - JsonData.usedBytes));
     $("#filecount").val(JsonData.numFiles);
+    $('#diag_sd').text(SdCardIsInstalled ? "Installed" : "Not installed");
+    $('#diag_sd_capacity').text(SdCardIsInstalled ?
+        (BytesToMB(JsonData.usedBytes) + " MB used / " + BytesToMB(JsonData.totalBytes) + " MB total") :
+        "N/A");
 
     // console.debug("totalBytes: " + JsonConfigData.totalBytes);
     // console.debug("usedBytes: " + JsonConfigData.usedBytes);
@@ -2291,6 +2335,10 @@ function ProcessReceivedJsonAdminMessage(data)
     $('#realflashsize').text(AdminInfo.realflashsize);
     $('#flashchipid').text(AdminInfo.flashchipid);
     $('#BoardName').text(AdminInfo.BoardName);
+    $('#diag_board').text(AdminInfo.BoardName + " / " + AdminInfo.arch);
+    $('#diag_firmware').text(AdminInfo.version + " / " + AdminInfo.built);
+    $('#diag_firmware').text(AdminInfo.version + " / " + AdminInfo.built);
+    $('#diag_flash').text(AdminInfo.realflashsize + " total / " + AdminInfo.usedflashsize + " used");
 
     // Hide elements that are not applicable to our architecture
     if (AdminInfo.arch === "ESP8266") {
@@ -2327,6 +2375,8 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     $('#w_ip').text(Wifi.ip);
     $('#w_subnet').text(Wifi.subnet);
     $('#w_mac').text(Wifi.mac);
+    $('#diag_wifi').text(((true === Wifi.connected) ? "Connected" : "Disconnected") + " (" + rssi + " dBm)");
+    $('#diag_wifi_address').text((Wifi.hostname || "unknown") + " / " + (Wifi.ip || "no address"));
 
     if ({}.hasOwnProperty.call(Network, 'eth')) {
         $('#ethernet_status').removeClass("hidden")
@@ -2336,13 +2386,17 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         $('#e_ip').text(Ethernet.ip);
         $('#e_subnet').text(Ethernet.subnet);
         $('#e_mac').text(Ethernet.mac);
+        $('#diag_eth').text(((true === Ethernet.connected) ? "Connected" : "Disconnected") +
+            " / " + (Ethernet.ip || "no address"));
     }
     else {
         $('#ethernet_status').addClass("hidden")
+        $('#diag_eth').text("Not available");
     }
 
     // getHeap(data)
     $('#x_freeheap').text(System.freeheap);
+    $('#diag_freeheap').text(System.freeheap);
 
     if ({}.hasOwnProperty.call(System, 'HeapDetails'))
     {
@@ -2353,6 +2407,24 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
         $('#n80C_Free_Tot').text(HeapDetails.n80C_Free_Tot);
         $('#n1800_Free_Max').text(HeapDetails.n1800_Free_Max);
         $('#n1800_Free_Tot').text(HeapDetails.n1800_Free_Tot);
+        $('#internal_free').text(HeapDetails.internal_free);
+        $('#internal_min_free').text(HeapDetails.internal_min_free);
+        $('#internal_max').text(HeapDetails.internal_max);
+        $('#psram_size').text(HeapDetails.psram_size);
+        $('#psram_free').text(HeapDetails.psram_free);
+        $('#psram_min_free').text(HeapDetails.psram_min_free);
+        $('#psram_max').text(HeapDetails.psram_max);
+        $('#diag_internal').text(HeapDetails.internal_free + " / " + HeapDetails.internal_min_free);
+        $('#diag_psram').text((undefined !== HeapDetails.psram_size) ? (HeapDetails.psram_free + " / " + HeapDetails.psram_min_free) : "Not available");
+        $('#diag_psram').toggleClass('text-muted', !(Number(HeapDetails.psram_size) > 0));
+        const InternalFree = Number(HeapDetails.internal_free || 0);
+        const InternalMax = Number(HeapDetails.internal_max || 0);
+        const PsramSize = Number(HeapDetails.psram_size || 0);
+        const PsramFree = Number(HeapDetails.psram_free || 0);
+        const InternalPressure = (InternalFree > 0) && ((InternalFree < 32768) || (InternalMax < 16384));
+        const PsramPressure = (PsramSize > 0) && (PsramFree < (PsramSize / 10));
+        $('#diag_internal').toggleClass('text-danger', InternalPressure);
+        $('#diag_psram').toggleClass('text-danger', PsramPressure);
     }
 
     // getUptime
@@ -2371,6 +2443,7 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
     str += ("0" + date.getUTCMinutes()).slice(-2) + ":";
     str += ("0" + date.getUTCSeconds()).slice(-2);
     $('#x_uptime').text(str);
+    $('#diag_uptime').text(str);
 
     date = new Date(1000 * System.currenttime);
     // console.debug("DateMS: " + date.getMilliseconds());
@@ -2411,9 +2484,12 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
 
     if (true === System.SDinstalled) {
         $("#li-filemanagement").removeClass("hidden");
+        $('#diag_sd').text("Installed");
     }
     else {
         $("#li-filemanagement").addClass("hidden");
+        $('#diag_sd').text("Not installed");
+        $('#diag_sd_capacity').text("N/A");
     }
 
     // getE131Status(data)
@@ -2527,6 +2603,39 @@ function ProcessReceivedJsonStatusMessage(JsonStat) {
             $('#PausedTimeRemaining').text(PlayerStatus.Paused.TimeRemaining);
         }
     }
+
+    let RmtStarts = 0;
+    let RmtCompletes = 0;
+    let RmtTimeouts = 0;
+    let RmtChannels = 0;
+    let RmtChannelDetails = [];
+    if(Array.isArray(Status.output))
+    {
+        Status.output.forEach(function(OutputStatus)
+        {
+            if({}.hasOwnProperty.call(OutputStatus, 'RmtFrameStarts'))
+            {
+                RmtChannels++;
+                RmtStarts += Number(OutputStatus.RmtFrameStarts || 0);
+                RmtCompletes += Number(OutputStatus.RmtFrameCompletes || 0);
+                RmtTimeouts += Number(OutputStatus.RmtFrameTimeouts || 0);
+                RmtChannelDetails.push("#" + RmtChannels + ": " +
+                    Number(OutputStatus.RmtFrameCompletes || 0) + "/" +
+                    Number(OutputStatus.RmtFrameStarts || 0) + " complete, " +
+                    Number(OutputStatus.RmtFrameTimeouts || 0) + " timeout(s), " +
+                    Number(OutputStatus.RmtConcurrentStarts || 0) + " concurrent" +
+                    ((true === OutputStatus.RmtFrameInFlight) ? ", in flight" : ""));
+            }
+        });
+    }
+    $('#diag_rmt').text((0 === RmtChannels) ? "Not reported" :
+        (RmtChannels + " channel(s), " + RmtCompletes + "/" + RmtStarts +
+         " complete, " + RmtTimeouts + " timeout(s)"));
+    $('#diag_rmt').toggleClass('text-danger', RmtTimeouts > 0);
+    $('#diag_rmt').toggleClass('text-success', (RmtChannels > 0) && (0 === RmtTimeouts));
+    $('#diag_rmt_channels').text((0 === RmtChannels) ? "Not reported" : RmtChannelDetails.join(" | "));
+    $('#diag_rmt_channels').toggleClass('text-danger', RmtTimeouts > 0);
+    $('#diag_rmt_channels').toggleClass('text-success', (RmtChannels > 0) && (0 === RmtTimeouts));
 
     // Device Refresh is dynamic
     // #refresh is used in device config tab to reflect what refresh rate should be, not what it currently is

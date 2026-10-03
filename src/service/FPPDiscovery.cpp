@@ -823,7 +823,7 @@ void c_FPPDiscovery::ProcessGET (AsyncWebServerRequest* request)
                 c_FileMgr::FileId FileHandle;
                 // DEBUG_V (String (" seq: ") + seq);
 
-                if (FileMgr.OpenSdFile (seq, c_FileMgr::FileMode::FileRead, FileHandle, -1))
+                if (FileMgr.OpenSdFile (seq, c_FileMgr::FileMode::FileRead, FileHandle))
                 {
                     // DEBUG_FILE_HANDLE(FileHandle);
                     if (FileMgr.GetSdFileSize(FileHandle) > 0)
@@ -907,7 +907,7 @@ void c_FPPDiscovery::ProcessPOST (AsyncWebServerRequest* request)
         // DEBUG_V (String(F ("FileName: ")) + filename);
 
         c_FileMgr::FileId FileHandle;
-        if (false == FileMgr.OpenSdFile (filename, c_FileMgr::FileMode::FileRead, FileHandle, -1))
+        if (false == FileMgr.OpenSdFile (filename, c_FileMgr::FileMode::FileRead, FileHandle))
         {
             logcon (String (F ("c_FPPDiscovery::ProcessPOST: File Does Not Exist - FileName: ")) + filename);
             request->send (404);

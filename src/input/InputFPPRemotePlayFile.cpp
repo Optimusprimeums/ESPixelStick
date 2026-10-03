@@ -285,7 +285,7 @@ bool c_InputFPPRemotePlayFile::ParseFseqFile ()
 
         if (false == FileMgr.OpenSdFile (FileControl[CurrentFile].FileName,
                                          c_FileMgr::FileMode::FileRead,
-                                         FileControl[CurrentFile].FileHandleForFileBeingPlayed, -1))
+                                         FileControl[CurrentFile].FileHandleForFileBeingPlayed))
         {
             if(!String(LastFailedFilename).equals(FileControl[CurrentFile].FileName))
             {

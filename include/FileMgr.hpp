@@ -97,7 +97,7 @@ public:
     void     DeleteSdFile     (const String & FileName);
     void     SaveSdFile       (const String & FileName, String & FileData);
     void     SaveSdFile       (const String & FileName, JsonVariant & FileData);
-    bool     OpenSdFile       (const String & FileName, FileMode Mode, FileId & FileHandle, int FileListIndex);
+    bool     OpenSdFile       (const String & FileName, FileMode Mode, FileId & FileHandle);
     uint64_t ReadSdFile       (const FileId & FileHandle, byte * FileData, uint64_t NumBytesToRead, uint64_t StartingPosition);
     bool     ReadSdFile       (const String & FileName,   String & FileData);
     bool     ReadSdFile       (const String & FileName,   JsonDocument & FileData);
@@ -162,6 +162,7 @@ private:
     void listDir (fs::FS& fs, String dirname, uint8_t levels);
     void DescribeSdCardToUser ();
     void handleFileUploadNewFile (const String & filename);
+    void RestoreUploadOutputState ();
     void printDirectory (FsFile & dir, int numTabs);
 
     bool     SdCardInstalled = false;
@@ -183,6 +184,7 @@ private:
     char     WelcomeString[65] = "ESPS V4 FTP";
     bool     FtpEnabled = true;
     uint64_t SdCardSize = 0;
+    uint64_t SdCardUsedBytes = 0;
     uint32_t MaxSdSpeed = MaxSdTransSpeedMHz;
     bool     FoundZipFile = false;
 
@@ -284,6 +286,9 @@ public: struct __attribute__((__packed__, aligned(4))) CSD {
     File        FileSendDir;
     uint32_t    LastFileSent = 0;
     uint32_t    expectedIndex = 0;
+    bool        UploadBorrowedOutputBuffer = false;
+    bool        UploadPreviousInputOperationalState = true;
+    bool        UploadPreviousOutputPausedState = false;
 
 #ifdef ARDUINO_ARCH_ESP32
     SemaphoreHandle_t SdAccessSemaphore = NULL;
