@@ -342,6 +342,13 @@ bool c_OutputPixel::validate ()
             MatrixRotation = 0;
             response = false;
         }
+        else if (((MatrixRotation == 90) || (MatrixRotation == 270)) &&
+                 (MatrixWidth != MatrixHeight))
+        {
+            logcon(F("90/270 degree matrix rotation requires a square matrix; using 0 degrees"));
+            MatrixRotation = 0;
+            response = false;
+        }
     }
 
     // Default gamma value
