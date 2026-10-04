@@ -61,6 +61,14 @@ void c_OutputPixel::GetConfig (ArduinoJson::JsonObject& jsonConfig)
     JsonWrite(jsonConfig, CN_group_size,       PixelGroupSize);
     JsonWrite(jsonConfig, CN_groups,           PixelGroups);
     JsonWrite(jsonConfig, CN_zig_size,         zig_size);
+    JsonWrite(jsonConfig, "matrix_enabled",     MatrixEnabled);
+    JsonWrite(jsonConfig, "matrix_width",       MatrixWidth);
+    JsonWrite(jsonConfig, "matrix_height",      MatrixHeight);
+    JsonWrite(jsonConfig, "matrix_serpentine",  MatrixSerpentine);
+    JsonWrite(jsonConfig, "matrix_vertical",    MatrixVertical);
+    JsonWrite(jsonConfig, "matrix_reverse_x",   MatrixReverseX);
+    JsonWrite(jsonConfig, "matrix_reverse_y",   MatrixReverseY);
+    JsonWrite(jsonConfig, "matrix_rotation",    MatrixRotation);
     JsonWrite(jsonConfig, CN_gamma,            serialized(String(gamma, 2)));
     JsonWrite(jsonConfig, CN_brightness,       brightness); // save as a 0 - 100 percentage
     JsonWrite(jsonConfig, CN_interframetime,   InterFrameGapInMicroSec);
@@ -190,6 +198,14 @@ bool c_OutputPixel::SetConfig (ArduinoJson::JsonObject& jsonConfig)
     // handle config sources that do not keep this aligned
     PixelGroups = pixel_count / PixelGroupSize;
     setFromJSON (zig_size,                jsonConfig, CN_zig_size);
+    setFromJSON (MatrixEnabled,           jsonConfig, "matrix_enabled");
+    setFromJSON (MatrixWidth,             jsonConfig, "matrix_width");
+    setFromJSON (MatrixHeight,            jsonConfig, "matrix_height");
+    setFromJSON (MatrixSerpentine,        jsonConfig, "matrix_serpentine");
+    setFromJSON (MatrixVertical,          jsonConfig, "matrix_vertical");
+    setFromJSON (MatrixReverseX,          jsonConfig, "matrix_reverse_x");
+    setFromJSON (MatrixReverseY,          jsonConfig, "matrix_reverse_y");
+    setFromJSON (MatrixRotation,          jsonConfig, "matrix_rotation");
     setFromJSON (gamma,                   jsonConfig, CN_gamma);
     setFromJSON (brightness,              jsonConfig, CN_brightness);
     setFromJSON (InterFrameGapInMicroSec, jsonConfig, CN_interframetime);
@@ -307,6 +323,25 @@ bool c_OutputPixel::validate ()
     else if (2 > zig_size)
     {
         zig_size = 1;
+    }
+
+    if (MatrixEnabled)
+    {
+        const uint32_t MatrixPixels = uint32_t(MatrixWidth) * uint32_t(MatrixHeight);
+        if ((0 == MatrixWidth) || (0 == MatrixHeight) || (MatrixPixels != pixel_count))
+        {
+            logcon(F("Invalid matrix dimensions; disabling matrix mapping"));
+            MatrixEnabled = false;
+            response = false;
+        }
+
+        if ((MatrixRotation != 0) && (MatrixRotation != 90) &&
+            (MatrixRotation != 180) && (MatrixRotation != 270))
+        {
+            logcon(F("Invalid matrix rotation; using 0 degrees"));
+            MatrixRotation = 0;
+            response = false;
+        }
     }
 
     // Default gamma value
@@ -712,16 +747,73 @@ uint32_t IRAM_ATTR c_OutputPixel::ISR_GetIntensityData()
 }
 
 //----------------------------------------------------------------------------
+uint32_t c_OutputPixel::CalculateMatrixPixelId(uint32_t LogicalPixelId) const
+{
+    if (!MatrixEnabled || !MatrixWidth || !MatrixHeight)
+    {
+        return LogicalPixelId;
+    }
+
+    uint32_t x = LogicalPixelId % MatrixWidth;
+    uint32_t y = LogicalPixelId / MatrixWidth;
+
+    // Rotation describes the logical image orientation before physical wiring
+    // transforms. For 90/270 degrees, dimensions must be square to keep the
+    // configured pixel rectangle invariant without allocating a remap table.
+    if ((MatrixRotation == 90 || MatrixRotation == 270) && (MatrixWidth == MatrixHeight))
+    {
+        uint32_t ox = x;
+        if (MatrixRotation == 90)
+        {
+            x = MatrixWidth - 1 - y;
+            y = ox;
+        }
+        else
+        {
+            x = y;
+            y = MatrixHeight - 1 - ox;
+        }
+    }
+    else if (MatrixRotation == 180)
+    {
+        x = MatrixWidth - 1 - x;
+        y = MatrixHeight - 1 - y;
+    }
+
+    if (MatrixReverseX) { x = MatrixWidth - 1 - x; }
+    if (MatrixReverseY) { y = MatrixHeight - 1 - y; }
+
+    if (MatrixVertical)
+    {
+        if (MatrixSerpentine && (x & 1U))
+        {
+            y = MatrixHeight - 1 - y;
+        }
+        return (x * MatrixHeight) + y;
+    }
+
+    if (MatrixSerpentine && (y & 1U))
+    {
+        x = MatrixWidth - 1 - x;
+    }
+    return (y * MatrixWidth) + x;
+}
+
+//----------------------------------------------------------------------------
 inline uint32_t c_OutputPixel::CalculateIntensityOffset(uint32_t ChannelId)
 {
     // DEBUG_START;
 
     // DEBUG_V(String("              ChannelId: ") + String(ChannelId));
     uint32_t PixelId = ChannelId / uint32_t(NumIntensityBytesPerPixel);
+    if (MatrixEnabled)
+    {
+        PixelId = CalculateMatrixPixelId(PixelId);
+    }
     // DEBUG_V(String("               PixelId0: ") + String(PixelId));
 
     // are we doing a zig zag operation?
-    if ((zig_size > 1) && (PixelId >= zig_size))
+    if (!MatrixEnabled && (zig_size > 1) && (PixelId >= zig_size))
     {
         // DEBUG_V(String("               PixelId1: ") + String(PixelId));
         // DEBUG_V(String("               zig_size: ") + String(zig_size));
