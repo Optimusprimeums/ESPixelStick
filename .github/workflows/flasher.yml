@@ -1,0 +1,48 @@
+name: ESPixelStick Windows Flasher
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - esp32-s3-enhancements
+    paths:
+      - "tools/flasher/**"
+      - ".github/workflows/flasher.yml"
+  pull_request:
+    paths:
+      - "tools/flasher/**"
+      - ".github/workflows/flasher.yml"
+
+jobs:
+  build-windows-flasher:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flasher dependencies
+        run: python -m pip install --upgrade pip -r tools/flasher/requirements.txt
+
+      - name: Syntax check
+        run: python -m py_compile tools/flasher/espixelstick_flasher.py
+
+      - name: Build standalone Windows executable
+        run: >
+          pyinstaller
+          --noconfirm
+          --clean
+          --onefile
+          --windowed
+          --name ESPixelStick-Flasher
+          --collect-all esptool
+          tools/flasher/espixelstick_flasher.py
+
+      - name: Upload Windows flasher
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESPixelStick-Windows-Flasher
+          path: dist/ESPixelStick-Flasher.exe
+          if-no-files-found: error
