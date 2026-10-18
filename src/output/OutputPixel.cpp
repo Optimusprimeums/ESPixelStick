@@ -196,6 +196,7 @@ bool c_OutputPixel::SetConfig (ArduinoJson::JsonObject& jsonConfig)
     setFromJSON (PixelGroupSize,          jsonConfig, CN_group_size);
     // setFromJSON (PixelGroups,             jsonConfig, CN_groups);
     // handle config sources that do not keep this aligned
+    PixelGroupSize = (PixelGroupSize < 1) ? 1 : PixelGroupSize;
     PixelGroups = pixel_count / PixelGroupSize;
     setFromJSON (zig_size,                jsonConfig, CN_zig_size);
     setFromJSON (MatrixEnabled,           jsonConfig, "matrix_enabled");
@@ -328,7 +329,8 @@ bool c_OutputPixel::validate ()
     if (MatrixEnabled)
     {
         const uint32_t MatrixPixels = uint32_t(MatrixWidth) * uint32_t(MatrixHeight);
-        if ((0 == MatrixWidth) || (0 == MatrixHeight) || (MatrixPixels != pixel_count))
+        if ((0 == MatrixWidth) || (0 == MatrixHeight) || (MatrixPixels != PixelGroups) ||
+            ((pixel_count % PixelGroupSize) != 0))
         {
             logcon(F("Invalid matrix dimensions; disabling matrix mapping"));
             MatrixEnabled = false;
