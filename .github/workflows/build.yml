@@ -8,6 +8,18 @@ concurrency:
 env:
   VERSION_BASE: "4.0"
 jobs:
+  matrix-regression:
+    name: 2D matrix mapping regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Run matrix mapping tests
+        run: python -m unittest discover -s tests -p 'test_matrix_mapping.py' -v
+
   firmware:
     strategy:
       matrix:
