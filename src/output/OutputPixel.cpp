@@ -1,3 +1,4 @@
+#include "MatrixMapping.hpp"
 /*
 * OutputPixel.cpp - Pixel driver code for ESPixelStick UART
 *
@@ -758,54 +759,9 @@ uint32_t IRAM_ATTR c_OutputPixel::ISR_GetIntensityData()
 //----------------------------------------------------------------------------
 uint32_t c_OutputPixel::CalculateMatrixPixelId(uint32_t LogicalPixelId) const
 {
-    if (!MatrixEnabled || !MatrixWidth || !MatrixHeight)
-    {
-        return LogicalPixelId;
-    }
-
-    uint32_t x = LogicalPixelId % MatrixWidth;
-    uint32_t y = LogicalPixelId / MatrixWidth;
-
-    // Rotation describes the logical image orientation before physical wiring
-    // transforms. For 90/270 degrees, dimensions must be square to keep the
-    // configured pixel rectangle invariant without allocating a remap table.
-    if ((MatrixRotation == 90 || MatrixRotation == 270) && (MatrixWidth == MatrixHeight))
-    {
-        uint32_t ox = x;
-        if (MatrixRotation == 90)
-        {
-            x = MatrixWidth - 1 - y;
-            y = ox;
-        }
-        else
-        {
-            x = y;
-            y = MatrixHeight - 1 - ox;
-        }
-    }
-    else if (MatrixRotation == 180)
-    {
-        x = MatrixWidth - 1 - x;
-        y = MatrixHeight - 1 - y;
-    }
-
-    if (MatrixReverseX) { x = MatrixWidth - 1 - x; }
-    if (MatrixReverseY) { y = MatrixHeight - 1 - y; }
-
-    if (MatrixVertical)
-    {
-        if (MatrixSerpentine && (x & 1U))
-        {
-            y = MatrixHeight - 1 - y;
-        }
-        return (x * MatrixHeight) + y;
-    }
-
-    if (MatrixSerpentine && (y & 1U))
-    {
-        x = MatrixWidth - 1 - x;
-    }
-    return (y * MatrixWidth) + x;
+    return MatrixMapping::map(LogicalPixelId, MatrixWidth, MatrixHeight,
+                              MatrixEnabled, MatrixSerpentine, MatrixVertical,
+                              MatrixReverseX, MatrixReverseY, MatrixRotation);
 }
 
 //----------------------------------------------------------------------------
