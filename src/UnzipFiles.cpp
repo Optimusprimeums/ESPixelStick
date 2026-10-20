@@ -219,7 +219,7 @@ void UnzipFiles::ProcessCurrentFileInZip(unz_file_info & fi, String & FileName)
         }
 
         c_FileMgr::FileId FileHandle;
-        FileMgr.OpenSdFile(FileName, c_FileMgr::FileMode::FileWrite, FileHandle, -1);
+        FileMgr.OpenSdFile(FileName, c_FileMgr::FileMode::FileWrite, FileHandle);
         if(FileHandle == c_FileMgr::INVALID_FILE_HANDLE)
         {
             zip.closeCurrentFile();
@@ -259,7 +259,7 @@ void * UnzipFiles::OpenZipFile(const char *FileName, int32_t *size)
     // DEBUG_V(String("  FileName: '") + String(FileName) + "'");
 
     c_FileMgr::FileId FileHandle = c_FileMgr::INVALID_FILE_HANDLE;
-    FileMgr.OpenSdFile(FileName, c_FileMgr::FileMode::FileRead, FileHandle, -1);
+    FileMgr.OpenSdFile(FileName, c_FileMgr::FileMode::FileRead, FileHandle);
     if(FileHandle == c_FileMgr::INVALID_FILE_HANDLE)
     {
         logcon(String("Could not open file for unzipping: '") + FileName + "'");

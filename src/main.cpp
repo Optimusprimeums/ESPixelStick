@@ -206,6 +206,15 @@ void setup()
 #ifdef ARDUINO_ARCH_ESP32
     logcon(String("CPU Frequency: ") + String(getCpuFrequencyMhz()) + "MHz");
     logcon(String("APB Frequency: ") + String(getApbFrequency() / 1000000) + "MHz");
+#if defined(BOARD_ESP32S3_DEVKITC) && defined(BOARD_HAS_PSRAM)
+    const size_t PsramSize = ESP.getPsramSize();
+    const size_t FreePsram = ESP.getFreePsram();
+    logcon(String("PSRAM: ") + String(PsramSize) + " bytes, free: " + String(FreePsram) + " bytes");
+    if(0 == PsramSize)
+    {
+        logcon(F("WARNING: N16R8 PSRAM was not detected; PSRAM optimizations will use fallback paths."));
+    }
+#endif
 
     // DEBUG_V(String("Configured Stack Size: ") + String(getArduinoLoopTaskStackSize()));
     // DEBUG_V(String("Remaining Stack Space: ") + String(uxTaskGetStackHighWaterMark(NULL)));

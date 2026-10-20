@@ -70,6 +70,7 @@ public:
     uint32_t  GetBufferSize     () { return uint32_t(OM_MAX_NUM_CHANNELS); } ///< Get the size (in intensities) of the buffer into which the E1.31 handler will stuff data
     void      DeleteConfig      () { FileMgr.DeleteFlashFile (ConfigFileName); }
     void      PauseOutputs      (bool NewState);
+    bool      OutputsArePaused  () const { return OutputIsPaused; }
     void      GetDriverName     (String & Name) { Name = "OutputMgr"; }
     void      WriteChannelData  (uint32_t StartChannelId, uint32_t ChannelCount, uint8_t * pData);
     void      ReadChannelData   (uint32_t StartChannelId, uint32_t ChannelCount, uint8_t *pTargetData);

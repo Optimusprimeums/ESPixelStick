@@ -28,58 +28,71 @@ static uint32_t         RawIsrCounter = 0;
 #endif // def USE_RMT_DEBUG_COUNTERS
 
 static TaskHandle_t     SendFrameTaskHandle = NULL;
-static BaseType_t       xHigherPriorityTaskWoken = pdTRUE;
 static uint32_t         FrameCompletes = 0;
 static uint32_t         FrameTimeouts = 0;
+static uint32_t         ActiveFrameChannels = 0;
+static uint32_t         MaxActiveFrameChannels = 0;
 static c_OutputRmt *    rmt_isr_ThisPtrs[MAX_NUM_RMT_CHANNELS];
 
 //----------------------------------------------------------------------------
 void RMT_Task (void *arg)
 {
-    // DEBUG_V(String("Current CPU ID: ") + String(xPortGetCoreID()));
-    // pinMode(17, OUTPUT);
-    // digitalWrite(17, HIGH);
     while(1)
     {
-        // Give the outputs a chance to catch up.
-        bool FoundAchannelToProcess = false;
+        bool AnyFrameInFlight = false;
+        uint32_t CurrentActiveChannels = 0;
 
-        // process all possible channels
+        // Launch every ready channel before waiting. ESP32-S3 RMT channels are
+        // independent hardware engines, so this allows parallel pixel output.
         for (c_OutputRmt * pRmt : rmt_isr_ThisPtrs)
         {
-            // do we have a driver on this channel?
-            if(nullptr != pRmt)
+            if(nullptr == pRmt)
             {
-                // digitalWrite(17, LOW);
+                continue;
+            }
 
-                // invoke the channel
-                if (pRmt->StartNextFrame())
+            if(pRmt->IsFrameInFlight())
+            {
+                if(pRmt->IsFrameComplete())
                 {
-                    FoundAchannelToProcess = true;
-
-                    // sys_delay_ms(500);
-                    uint32_t NotificationValue = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS(100) );
-                    // digitalWrite(17, HIGH);
-
-                    if(1 == NotificationValue)
+                    if(pRmt->CompleteFrame())
                     {
-                        // DEBUG_V("The transmission ended as expected.");
                         ++FrameCompletes;
                     }
                     else
                     {
                         ++FrameTimeouts;
-                        // DEBUG_V("Transmit Timed Out.");
                     }
                 }
+                else if((xTaskGetTickCount() - pRmt->GetFrameStartTick()) > pRmt->GetFrameTimeoutTicks())
+                {
+                    pRmt->TimeoutFrame();
+                    ++FrameTimeouts;
+                }
+            }
+
+            if(!pRmt->IsFrameInFlight())
+            {
+                bool OtherFrameActive = AnyFrameInFlight;
+                if(pRmt->StartNextFrame() && OtherFrameActive)
+                {
+                    pRmt->NoteConcurrentStart();
+                }
+            }
+
+            AnyFrameInFlight |= pRmt->IsFrameInFlight();
+            if(pRmt->IsFrameInFlight())
+            {
+                ++CurrentActiveChannels;
             }
         }
 
-        if(false == FoundAchannelToProcess)
-        {
-            // let the other tasks run for a bit
-            vTaskDelay(5 / portTICK_PERIOD_MS);
-        }
+        ActiveFrameChannels = CurrentActiveChannels;
+        MaxActiveFrameChannels = max(MaxActiveFrameChannels, CurrentActiveChannels);
+
+        // Hardware TX completion wakes this task immediately. The short timeout is
+        // also a recovery/poll path for channels with no current frame.
+        ulTaskNotifyTake(pdTRUE, AnyFrameInFlight ? pdMS_TO_TICKS(2) : pdMS_TO_TICKS(1));
     }
 } // RMT_Task
 
@@ -100,10 +113,24 @@ c_OutputRmt::~c_OutputRmt ()
 
     if (HasBeenInitialized)
     {
-        ISR_ResetRmtBlockPointers (); // Stop transmitter
-        rmt_disable(rmt_channel_handle);
+        // Remove the instance from the scheduler before stopping hardware so
+        // the worker cannot start another frame during destruction.
         rmt_isr_ThisPtrs[OutputRmtConfig.RmtChannelId] = (c_OutputRmt*)nullptr;
-        yield();
+        FrameInFlight = false;
+        FrameEncodingComplete = false;
+
+        // Stop the channel before releasing callback/encoder state. Deleting
+        // the channel unregisters its TX-done callback and prevents a late ISR
+        // from dereferencing this object after destruction.
+        rmt_disable(rmt_channel_handle);
+        rmt_del_channel(rmt_channel_handle);
+        rmt_channel_handle = nullptr;
+
+        if(nullptr != rmt_encoder_handle)
+        {
+            rmt_del_encoder(rmt_encoder_handle);
+            rmt_encoder_handle = nullptr;
+        }
     }
 
     // DEBUG_END;
@@ -125,6 +152,24 @@ static size_t IRAM_ATTR ISR_encoder_callback(const void *data, size_t data_size,
                                              symbols_written, symbols_free,
                                              symbols, done);
 } // ISR_encoder_callback
+
+//----------------------------------------------------------------------------
+// The encoder callback only means all source symbols have been produced.
+// This callback is the authoritative end-of-wire transaction completion.
+static bool IRAM_ATTR ISR_tx_done_callback(rmt_channel_handle_t tx_chan,
+                                           const rmt_tx_done_event_data_t *edata,
+                                           void *arg)
+{
+    (void)tx_chan;
+    (void)edata;
+
+    c_OutputRmt *pRmt = reinterpret_cast<c_OutputRmt*>(arg);
+    pRmt->MarkFrameTransmissionCompleteFromISR();
+
+    BaseType_t HigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(SendFrameTaskHandle, &HigherPriorityTaskWoken);
+    return (HigherPriorityTaskWoken == pdTRUE);
+}
 
 //----------------------------------------------------------------------------
 void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
@@ -156,7 +201,7 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
             .clk_src = RMT_CLK_SRC_DEFAULT,         // select source clock
             .resolution_hz = uint32_t(RMT_TICK_RESOLUTION_HZ),
             .mem_block_symbols = NUM_RMT_SLOTS,     // increase the block size can make the LED less flickering
-            .trans_queue_depth = NUM_RMT_SLOTS,     // set the number of transactions that can be pending in the background
+            .trans_queue_depth = 1,                 // software permits only one in-flight frame; do not retain a stale queued transaction across recovery
             .intr_priority = 0,                     // auto set interrupt priority
             .flags =
             {
@@ -168,6 +213,13 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
             }
         };
         ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &rmt_channel_handle));
+        DEBUG_V();
+
+        const rmt_tx_event_callbacks_t tx_callbacks =
+        {
+            .on_trans_done = ISR_tx_done_callback
+        };
+        ESP_ERROR_CHECK(rmt_tx_register_event_callbacks(rmt_channel_handle, &tx_callbacks, this));
         DEBUG_V();
 
         const rmt_simple_encoder_config_t encoder_cfg =
@@ -182,16 +234,21 @@ void c_OutputRmt::Begin (OutputRmtConfig_t config, c_OutputCommon * _pParent )
         tx_config.flags.eot_level = OutputRmtConfig.idle_level == rmt_idle_level_t::RMT_IDLE_LEVEL_HIGH;
 
         // reset the internal and external pointers to the start of the mem block
-        ISR_ResetRmtBlockPointers ();
+        ResetRmtBlockPointers();
         // DEBUG_V();
 
         if(!SendFrameTaskHandle)
         {
             // DEBUG_V();
             // DEBUG_V("Start SendFrameTask");
-            xTaskCreatePinnedToCore(RMT_Task, "RMT_Task", 4096, NULL, 5, &SendFrameTaskHandle, 1);
-            // DEBUG_V();
-            vTaskPrioritySet(SendFrameTaskHandle, 5);
+            const BaseType_t TaskCreated = xTaskCreatePinnedToCore(RMT_Task, "RMT_Task", 4096, NULL, 5, &SendFrameTaskHandle, 1);
+            if((pdPASS != TaskCreated) || (nullptr == SendFrameTaskHandle))
+            {
+                logcon(F("ERROR: Failed to create RMT scheduler task. Rebooting"));
+                RequestReboot(F("RMT scheduler task creation failed"), 10000);
+                break;
+            }
+            // Priority is already supplied to xTaskCreatePinnedToCore().
         }
         // DEBUG_V();
         // DEBUG_V("Add this instance to the running list");
@@ -212,6 +269,13 @@ void c_OutputRmt::GetStatus (ArduinoJson::JsonObject& jsonStatus)
     // // DEBUG_START;
 
     jsonStatus[F("NumRmtSlotOverruns")] = NumRmtSlotOverruns;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    jsonStatus[F("RmtFrameStarts")] = ChannelFrameStarts;
+    jsonStatus[F("RmtFrameCompletes")] = ChannelFrameCompletes;
+    jsonStatus[F("RmtFrameTimeouts")] = ChannelFrameTimeouts;
+    jsonStatus[F("RmtConcurrentStarts")] = ConcurrentFrameStarts;
+    jsonStatus[F("RmtFrameInFlight")] = FrameInFlight;
+#endif
 #ifdef USE_RMT_DEBUG_COUNTERS
     jsonStatus[F("OutputIsPaused")] = OutputIsPaused;
     JsonObject debugStatus = jsonStatus["RMT Debug"].to<JsonObject>();
@@ -226,6 +290,8 @@ void c_OutputRmt::GetStatus (ArduinoJson::JsonObject& jsonStatus)
 
     debugStatus["ErrorIsr"]                     = RMT_DEBUG_COUNTER(ErrorIsr);
     debugStatus["FrameCompletes"]               = FrameCompletes;
+    debugStatus["ActiveFrameChannels"]          = ActiveFrameChannels;
+    debugStatus["MaxActiveFrameChannels"]       = MaxActiveFrameChannels;
     debugStatus["FrameStartCounter"]            = RMT_DEBUG_COUNTER(FrameStartCounter);
     debugStatus["FrameTimeouts"]                = FrameTimeouts;
     debugStatus["FailedToSendAllData"]          = RMT_DEBUG_COUNTER(FailedToSendAllData);
@@ -246,6 +312,10 @@ void c_OutputRmt::GetStatus (ArduinoJson::JsonObject& jsonStatus)
     debugStatus["SendBlockIsrCounter"]          = RMT_DEBUG_COUNTER(SendBlockIsrCounter);
     debugStatus["UnknownISRcounter"]            = RMT_DEBUG_COUNTER(UnknownISRcounter);
     debugStatus["WriteToBuffer"]                = RMT_DEBUG_COUNTER(WriteToBuffer);
+    debugStatus["FrameInFlight"]                 = FrameInFlight;
+    debugStatus["ConcurrentFrameStarts"]         = ConcurrentFrameStarts;
+    debugStatus["ChannelFrameCompletes"]         = ChannelFrameCompletes;
+    debugStatus["ChannelFrameTimeouts"]          = ChannelFrameTimeouts;
 
 #ifdef IncludeBufferData
     {
@@ -364,9 +434,9 @@ size_t IRAM_ATTR c_OutputRmt::ISR_Handler (const void *data, size_t data_size,
         if (0 == NumUsedEntriesInSendBuffer)
         {
             RMT_DEBUG_INC_COUNTER(RanOutOfData);
+            // Encoding is complete, but the final symbols may still be on the
+            // wire. ISR_tx_done_callback owns transaction completion/wakeup.
             *done = true;
-            // tell the background task to start the next output
-            vTaskNotifyGiveFromISR( SendFrameTaskHandle, &xHigherPriorityTaskWoken );
         }
         else
         {
@@ -379,7 +449,7 @@ size_t IRAM_ATTR c_OutputRmt::ISR_Handler (const void *data, size_t data_size,
 } // ISR_Handler
 
 //----------------------------------------------------------------------------
-inline void IRAM_ATTR c_OutputRmt::ISR_ResetRmtBlockPointers()
+inline void c_OutputRmt::ResetRmtBlockPointers(bool EnableChannel)
 {
     rmt_disable(rmt_channel_handle);
 
@@ -388,7 +458,10 @@ inline void IRAM_ATTR c_OutputRmt::ISR_ResetRmtBlockPointers()
     SendBufferReadIndex  = 0;
     NumUsedEntriesInSendBuffer = 0;
 
-    rmt_enable(rmt_channel_handle);
+    if(EnableChannel)
+    {
+        rmt_enable(rmt_channel_handle);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -428,6 +501,37 @@ size_t IRAM_ATTR c_OutputRmt::ISR_TransferIntensityDataToRMT (rmt_item32_t *symb
 } // ISR_TransferIntensityDataToRMT
 
 //----------------------------------------------------------------------------
+bool c_OutputRmt::CompleteFrame ()
+{
+    // The TX-done callback marks end-of-wire completion. Reap the ESP-IDF
+    // transaction descriptor before making this channel available again.
+    esp_err_t WaitResult = rmt_tx_wait_all_done(rmt_channel_handle, 10);
+    if(ESP_OK != WaitResult)
+    {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(WaitResult);
+        TimeoutFrame();
+        return false;
+    }
+
+    FrameInFlight = false;
+    FrameEncodingComplete = false;
+    ++ChannelFrameCompletes;
+    return true;
+}
+
+//----------------------------------------------------------------------------
+void c_OutputRmt::TimeoutFrame ()
+{
+    // A timeout means software can no longer trust the driver's queued
+    // transaction state. Disable/re-enable the channel to discard pending
+    // hardware/driver work before allowing another frame to start.
+    ResetRmtBlockPointers();
+    FrameInFlight = false;
+    FrameEncodingComplete = false;
+    ++ChannelFrameTimeouts;
+}
+
+//----------------------------------------------------------------------------
 void c_OutputRmt::PauseOutput(bool PauseOutput)
 {
     /// DEBUG_START;
@@ -442,6 +546,13 @@ void c_OutputRmt::PauseOutput(bool PauseOutput)
     }
 
     OutputIsPaused = PauseOutput;
+    if(PauseOutput)
+    {
+        FrameInFlight = false;
+        FrameEncodingComplete = false;
+        // A paused output must leave the hardware transmitter disabled.
+        ResetRmtBlockPointers(false);
+    }
 
     ///DEBUG_END;
 } // PauseOutput
@@ -458,14 +569,12 @@ bool c_OutputRmt::StartNewFrame ()
         if(OutputIsPaused)
         {
             // DEBUG_V("Paused");
-            // Stop the transmitter
-            rmt_disable(rmt_channel_handle);
-            ISR_ResetRmtBlockPointers ();
+            // PauseOutput() leaves the transmitter disabled.
             break;
         }
 
 		// Stop the transmitter
-        ISR_ResetRmtBlockPointers ();
+        ResetRmtBlockPointers();
 
         #ifdef USE_RMT_DEBUG_COUNTERS
         RMT_DEBUG_INC_COUNTER(FrameStartCounter);
@@ -499,7 +608,17 @@ bool c_OutputRmt::StartNewFrame ()
         // DEBUG_V(String("rmt_encoder_handle: ") + String(uint32_t(rmt_encoder_handle)));
         // DEBUG_V(String("       BufferStart: ") + String(uint32_t(OutputRmtConfig.BufferStart)));
         // DEBUG_V(String("   NumBytesInFrame: ") + String(uint32_t(OutputRmtConfig.NumBytesInFrame)));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(rmt_transmit(rmt_channel_handle, rmt_encoder_handle, OutputRmtConfig.BufferStart, OutputRmtConfig.NumBytesInFrame, &tx_config));
+        FrameEncodingComplete = false;
+        FrameInFlight = true;
+        ++ChannelFrameStarts;
+        FrameStartTick = xTaskGetTickCount();
+        esp_err_t TransmitResult = rmt_transmit(rmt_channel_handle, rmt_encoder_handle, OutputRmtConfig.BufferStart, OutputRmtConfig.NumBytesInFrame, &tx_config);
+        if(ESP_OK != TransmitResult)
+        {
+            FrameInFlight = false;
+            ESP_ERROR_CHECK_WITHOUT_ABORT(TransmitResult);
+            break;
+        }
 
         // rmt_set_gpio (OutputRmtConfig.RmtChannelId, rmt_mode_t::RMT_MODE_TX, OutputRmtConfig.DataPin, false);
         // digitalWrite(42, HIGH);

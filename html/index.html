@@ -158,6 +158,13 @@
                                 <td width="33%">1800 Max Free</td>
                                 <td><span id="n1800_Free_Max"></span></td>
                             </tr>
+                            <tr><td width="33%">Internal RAM Free</td><td><span id="internal_free"></span></td></tr>
+                            <tr><td width="33%">Internal RAM Minimum</td><td><span id="internal_min_free"></span></td></tr>
+                            <tr><td width="33%">Internal RAM Largest Block</td><td><span id="internal_max"></span></td></tr>
+                            <tr class="esp32"><td width="33%">PSRAM Total</td><td><span id="psram_size"></span></td></tr>
+                            <tr class="esp32"><td width="33%">PSRAM Free</td><td><span id="psram_free"></span></td></tr>
+                            <tr class="esp32"><td width="33%">PSRAM Minimum</td><td><span id="psram_min_free"></span></td></tr>
+                            <tr class="esp32"><td width="33%">PSRAM Largest Block</td><td><span id="psram_max"></span></td></tr>
                         </table>
                     </fieldset>
                 </div>
@@ -793,6 +800,35 @@
 
         <!-- Diagnostics -->
         <div id="diag" class="mdiv hidden anchor">
+            <fieldset>
+                <legend class="esps-legend">System Health</legend>
+                <div class="row">
+                    <div class="col-sm-6"><table class="esps-table">
+                        <tr><td width="45%">Free Heap</td><td><span id="diag_freeheap"></span></td></tr>
+                        <tr><td>Internal RAM Free / Minimum</td><td><span id="diag_internal"></span></td></tr>
+                        <tr><td>PSRAM Free / Minimum</td><td><span id="diag_psram"></span></td></tr>
+                        <tr><td>WiFi</td><td><span id="diag_wifi"></span></td></tr>
+                        <tr><td>WiFi Address</td><td><span id="diag_wifi_address"></span></td></tr>
+                        <tr><td>Ethernet</td><td><span id="diag_eth">Not available</span></td></tr>
+                    </table></div>
+                    <div class="col-sm-6"><table class="esps-table">
+                        <tr><td width="45%">SD Card</td><td><span id="diag_sd"></span></td></tr>
+                        <tr><td>SD Capacity</td><td><span id="diag_sd_capacity"></span></td></tr>
+                        <tr><td>Uptime</td><td><span id="diag_uptime"></span></td></tr>
+                        <tr><td>Board</td><td><span id="diag_board"></span></td></tr>
+                        <tr><td>Firmware</td><td><span id="diag_firmware"></span></td></tr>
+                        <tr><td>Firmware / Build</td><td><span id="diag_firmware"></span></td></tr>
+                        <tr><td>Flash Capacity</td><td><span id="diag_flash"></span></td></tr>
+                        <tr><td>RMT Output Health</td><td><span id="diag_rmt">Not reported</span></td></tr>
+                        <tr><td>RMT Channel Detail</td><td><span id="diag_rmt_channels">Not reported</span></td></tr>
+                    </table></div>
+                </div>
+                <div class="form-group"><div class="col-sm-12">
+                    <button type="button" id="CopyDiagnostics" class="btn btn-default">Copy Diagnostics</button>
+                    <span id="CopyDiagnosticsResult" class="help-block"></span>
+                    <p class="help-block">Red values indicate memory pressure or RMT timeouts. Hardware-specific checks still require validation on the target board.</p>
+                </div></div>
+            </fieldset>
             <form class="form-horizontal">
                 <fieldset>
                     <legend class="esps-legend">View Stream</legend>
@@ -861,6 +897,10 @@
                             <p class="form-control-static" id="fseqprogressbytes"></p>
                             <label class="control-label col-sm-4" for="fseqprogressbytes">Transfer Rate:</label>
                             <p class="form-control-static" id="fseqprogressrate"></p>
+                            <label class="control-label col-sm-4" for="fseqprogresspercent">Progress:</label>
+                            <p class="form-control-static" id="fseqprogresspercent"></p>
+                            <progress id="fseqprogressbar" max="100" value="0" style="width:100%"></progress>
+                            <p class="form-control-static" id="fsequploadstatus"></p>
                         </div>
                         <div id="filemanagementupload">
                             <p>Click to Upload a file with the file dialog or drag and drop a file into the dashed

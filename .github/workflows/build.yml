@@ -1,8 +1,35 @@
 name: ESPixelStick CI
 on: [push, pull_request, workflow_dispatch]
+concurrency:
+  # Keep the latest push and pull-request validation independently while
+  # cancelling obsolete runs from older commits in the same stream.
+  group: espixelstick-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 env:
   VERSION_BASE: "4.0"
 jobs:
+  matrix-regression:
+    name: 2D matrix mapping regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Run matrix mapping tests
+        run: python -m unittest discover -s tests -p 'test_matrix_mapping.py' -v
+      - name: Check matrix configuration persistence contract
+        run: python -m unittest discover -s tests -p 'test_matrix_config_contract.py' -v
+      - name: Compile and run production C++ matrix mapper tests
+        run: |
+          g++ -std=c++11 -O2 -Wall -Wextra -Werror -Iinclude/output tests/test_matrix_mapping.cpp -o /tmp/test_matrix_mapping
+          /tmp/test_matrix_mapping
+      - name: Compile and run RGB/RGBW grouped channel tests
+        run: |
+          g++ -std=c++11 -O2 -Wall -Wextra -Werror -Iinclude/output tests/test_pixel_channel_mapping.cpp -o /tmp/test_pixel_channel_mapping
+          /tmp/test_pixel_channel_mapping
+
   firmware:
     strategy:
       matrix:

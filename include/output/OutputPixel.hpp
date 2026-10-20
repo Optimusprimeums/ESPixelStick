@@ -68,6 +68,17 @@ private:
 
     uint32_t    zig_size                    = 1;
 
+    // Optional 2D matrix mapping. Disabled by default to preserve legacy linear
+    // and zig_size behaviour exactly.
+    bool        MatrixEnabled               = false;
+    bool        MatrixSerpentine            = true;
+    bool        MatrixVertical              = false;
+    bool        MatrixReverseX              = false;
+    bool        MatrixReverseY              = false;
+    uint16_t    MatrixWidth                 = 0;
+    uint16_t    MatrixHeight                = 0;
+    uint16_t    MatrixRotation              = 0;
+
     uint32_t    PrependNullPixelCount       = 0;
     uint32_t    PrependNullPixelCurrentCount = 0;
 
@@ -148,6 +159,7 @@ private:
     void updateColorOrderOffsets(); ///< Update color order
     bool validate ();        ///< confirm that the current configuration is valid
     inline uint32_t CalculateIntensityOffset(uint32_t ChannelId);
+    uint32_t CalculateMatrixPixelId(uint32_t LogicalPixelId) const;
     uint32_t ISR_GetIntensityData();
 
 public:

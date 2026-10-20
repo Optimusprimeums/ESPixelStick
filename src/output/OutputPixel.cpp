@@ -1,3 +1,5 @@
+#include "../../include/output/MatrixMapping.hpp"
+#include "../../include/output/PixelChannelMapping.hpp"
 /*
 * OutputPixel.cpp - Pixel driver code for ESPixelStick UART
 *
@@ -61,6 +63,14 @@ void c_OutputPixel::GetConfig (ArduinoJson::JsonObject& jsonConfig)
     JsonWrite(jsonConfig, CN_group_size,       PixelGroupSize);
     JsonWrite(jsonConfig, CN_groups,           PixelGroups);
     JsonWrite(jsonConfig, CN_zig_size,         zig_size);
+    JsonWrite(jsonConfig, "matrix_enabled",     MatrixEnabled);
+    JsonWrite(jsonConfig, "matrix_width",       MatrixWidth);
+    JsonWrite(jsonConfig, "matrix_height",      MatrixHeight);
+    JsonWrite(jsonConfig, "matrix_serpentine",  MatrixSerpentine);
+    JsonWrite(jsonConfig, "matrix_vertical",    MatrixVertical);
+    JsonWrite(jsonConfig, "matrix_reverse_x",   MatrixReverseX);
+    JsonWrite(jsonConfig, "matrix_reverse_y",   MatrixReverseY);
+    JsonWrite(jsonConfig, "matrix_rotation",    MatrixRotation);
     JsonWrite(jsonConfig, CN_gamma,            serialized(String(gamma, 2)));
     JsonWrite(jsonConfig, CN_brightness,       brightness); // save as a 0 - 100 percentage
     JsonWrite(jsonConfig, CN_interframetime,   InterFrameGapInMicroSec);
@@ -188,8 +198,17 @@ bool c_OutputPixel::SetConfig (ArduinoJson::JsonObject& jsonConfig)
     setFromJSON (PixelGroupSize,          jsonConfig, CN_group_size);
     // setFromJSON (PixelGroups,             jsonConfig, CN_groups);
     // handle config sources that do not keep this aligned
+    PixelGroupSize = (PixelGroupSize < 1) ? 1 : PixelGroupSize;
     PixelGroups = pixel_count / PixelGroupSize;
     setFromJSON (zig_size,                jsonConfig, CN_zig_size);
+    setFromJSON (MatrixEnabled,           jsonConfig, "matrix_enabled");
+    setFromJSON (MatrixWidth,             jsonConfig, "matrix_width");
+    setFromJSON (MatrixHeight,            jsonConfig, "matrix_height");
+    setFromJSON (MatrixSerpentine,        jsonConfig, "matrix_serpentine");
+    setFromJSON (MatrixVertical,          jsonConfig, "matrix_vertical");
+    setFromJSON (MatrixReverseX,          jsonConfig, "matrix_reverse_x");
+    setFromJSON (MatrixReverseY,          jsonConfig, "matrix_reverse_y");
+    setFromJSON (MatrixRotation,          jsonConfig, "matrix_rotation");
     setFromJSON (gamma,                   jsonConfig, CN_gamma);
     setFromJSON (brightness,              jsonConfig, CN_brightness);
     setFromJSON (InterFrameGapInMicroSec, jsonConfig, CN_interframetime);
@@ -307,6 +326,33 @@ bool c_OutputPixel::validate ()
     else if (2 > zig_size)
     {
         zig_size = 1;
+    }
+
+    if (MatrixEnabled)
+    {
+        const uint32_t MatrixPixels = uint32_t(MatrixWidth) * uint32_t(MatrixHeight);
+        if ((0 == MatrixWidth) || (0 == MatrixHeight) || (MatrixPixels != PixelGroups) ||
+            ((pixel_count % PixelGroupSize) != 0))
+        {
+            logcon(F("Invalid matrix dimensions; disabling matrix mapping"));
+            MatrixEnabled = false;
+            response = false;
+        }
+
+        if ((MatrixRotation != 0) && (MatrixRotation != 90) &&
+            (MatrixRotation != 180) && (MatrixRotation != 270))
+        {
+            logcon(F("Invalid matrix rotation; using 0 degrees"));
+            MatrixRotation = 0;
+            response = false;
+        }
+        else if (((MatrixRotation == 90) || (MatrixRotation == 270)) &&
+                 (MatrixWidth != MatrixHeight))
+        {
+            logcon(F("90/270 degree matrix rotation requires a square matrix; using 0 degrees"));
+            MatrixRotation = 0;
+            response = false;
+        }
     }
 
     // Default gamma value
@@ -712,60 +758,34 @@ uint32_t IRAM_ATTR c_OutputPixel::ISR_GetIntensityData()
 }
 
 //----------------------------------------------------------------------------
+uint32_t c_OutputPixel::CalculateMatrixPixelId(uint32_t LogicalPixelId) const
+{
+    return MatrixMapping::map(LogicalPixelId, MatrixWidth, MatrixHeight,
+                              MatrixEnabled, MatrixSerpentine, MatrixVertical,
+                              MatrixReverseX, MatrixReverseY, MatrixRotation);
+}
+
+//----------------------------------------------------------------------------
 inline uint32_t c_OutputPixel::CalculateIntensityOffset(uint32_t ChannelId)
 {
-    // DEBUG_START;
-
-    // DEBUG_V(String("              ChannelId: ") + String(ChannelId));
-    uint32_t PixelId = ChannelId / uint32_t(NumIntensityBytesPerPixel);
-    // DEBUG_V(String("               PixelId0: ") + String(PixelId));
-
-    // are we doing a zig zag operation?
-    if ((zig_size > 1) && (PixelId >= zig_size))
+    // Preserve the legacy zig-zag mapping when 2D matrix mode is disabled.
+    // The shared channel mapper handles matrix mode and color/group offsets.
+    if (!MatrixEnabled && (zig_size > 1))
     {
-        // DEBUG_V(String("               PixelId1: ") + String(PixelId));
-        // DEBUG_V(String("               zig_size: ") + String(zig_size));
-        uint32_t ZigZagGroupId = PixelId / zig_size;
-        // DEBUG_V(String("          ZigZagGroupId: ") + String(ZigZagGroupId));
-
-        // is this a backwards group
-        if (0 != (ZigZagGroupId & 0x1))
+        uint32_t pixelId = ChannelId / uint32_t(NumIntensityBytesPerPixel);
+        const uint32_t zigGroup = pixelId / zig_size;
+        if (zigGroup & 1U)
         {
-            // DEBUG_V("Backwards Group");
-            uint32_t zigoffset = PixelId % zig_size;
-            // DEBUG_V(String("              zigoffset: ") + String(zigoffset));
-            uint32_t BaseGroupPixelId = ZigZagGroupId * zig_size;
-            // DEBUG_V(String("      BaseGroupPixelId1: ") + String(BaseGroupPixelId));
-            PixelId = BaseGroupPixelId + (zig_size - 1) - zigoffset;
-            // DEBUG_V(String("      BaseGroupPixelId2: ") + String(BaseGroupPixelId));
-            // DEBUG_V(String("                PixelId: 0x") + String(PixelId, HEX));
+            pixelId = zigGroup * zig_size + (zig_size - 1U) - (pixelId % zig_size);
         }
-        // DEBUG_V(String("               PixelId2: ") + String(PixelId));
+        return pixelId * PixelGroupSize * NumIntensityBytesPerPixel +
+               ColorOffsets.Array[ChannelId % NumIntensityBytesPerPixel];
     }
-    // DEBUG_V(String("          Final PixelId: ") + String(PixelId));
-
-    uint32_t ColorOrderIndex = ChannelId % NumIntensityBytesPerPixel;
-    if (uint32_t(NumIntensityBytesPerPixel) > ChannelId)
-    {
-        ColorOrderIndex = ChannelId;
-    }
-    uint32_t ColorOrderId = ColorOffsets.Array[ColorOrderIndex];
-    uint32_t PixelIntensityBaseId = PixelId * PixelGroupSize * NumIntensityBytesPerPixel;
-    uint32_t TargetBufferIntensityId = PixelIntensityBaseId + ColorOrderId;
-
-    // DEBUG_V(String("                ChannelId: 0x") + String(ChannelId, HEX));
-    // DEBUG_V(String("                  PixelId: 0x") + String(PixelId, HEX));
-    // DEBUG_V(String("          ColorOrderIndex: 0x") + String(ColorOrderIndex, HEX));
-    // DEBUG_V(String("             ColorOrderId: 0x") + String(ColorOrderId, HEX));
-    // DEBUG_V(String("NumIntensityBytesPerPixel: 0x") + String(NumIntensityBytesPerPixel, HEX));
-    // DEBUG_V(String("           PixelGroupSize: 0x") + String(PixelGroupSize, HEX));
-    // DEBUG_V(String("     PixelIntensityBaseId: 0x") + String(PixelIntensityBaseId, HEX));
-    // DEBUG_V(String("  TargetBufferIntensityId: 0x") + String(TargetBufferIntensityId, HEX));
-
-    // DEBUG_END;
-    return TargetBufferIntensityId;
-
-} // CalculateIntensityOffset
+    return PixelChannelMapping::intensityOffset(
+        ChannelId, NumIntensityBytesPerPixel, PixelGroupSize, ColorOffsets.Array,
+        MatrixWidth, MatrixHeight, MatrixEnabled, MatrixSerpentine, MatrixVertical,
+        MatrixReverseX, MatrixReverseY, MatrixRotation);
+}
 
 //----------------------------------------------------------------------------
 void c_OutputPixel::WriteChannelData(uint32_t StartChannelId, uint32_t ChannelCount, byte *pSourceData)
@@ -782,22 +802,24 @@ void c_OutputPixel::WriteChannelData(uint32_t StartChannelId, uint32_t ChannelCo
     // DEBUG_V(String("                      ChannelCount: 0x") + String(ChannelCount, HEX));
     // DEBUG_V(String("                AdjustedBrightness: ") + String(AdjustedBrightness));
 
-    uint32_t EndChannelId = StartChannelId + ChannelCount;
     uint32_t SourceDataIndex = 0;
-    for (uint32_t currentChannelId = StartChannelId; currentChannelId < EndChannelId; ++currentChannelId, ++SourceDataIndex)
+    for (uint32_t channelOffset = 0; channelOffset < ChannelCount; ++channelOffset, ++SourceDataIndex)
     {
+        if (StartChannelId > (UINT32_MAX - channelOffset)) { break; }
+        const uint32_t currentChannelId = StartChannelId + channelOffset;
         // DEBUG_V(String("      pSourceData[SourceDataIndex]: ") + String(pSourceData[SourceDataIndex]));
         uint32_t CurrentIntensityData = gamma_table[pSourceData[SourceDataIndex]];
         // DEBUG_V(String("              CurrentIntensityData: ") + String(CurrentIntensityData));
         CurrentIntensityData = uint8_t((uint32_t(CurrentIntensityData) * AdjustedBrightness) >> 8);
         // DEBUG_V(String("              CurrentIntensityData: ") + String(CurrentIntensityData));
         uint32_t CalculatedChannelId = CalculateIntensityOffset(currentChannelId);
-        uint8_t *pBuffer = &pOutputBuffer[CalculatedChannelId];
         for(uint32_t CurrentGroupIndex = 0; CurrentGroupIndex < PixelGroupSize; ++CurrentGroupIndex)
         {
             // DEBUG_V(String("      CurrentGroupIndex: 0x") + String(CurrentGroupIndex, HEX));
             // DEBUG_V(String("    CalculatedChannelId: 0x") + String(CalculatedChannelId, HEX));
-            if(uint32_t(pBuffer) >= uint32_t(&pOutputBuffer[OutputBufferSize]))
+            const uint64_t BufferIndex = uint64_t(CalculatedChannelId) +
+                                         (uint64_t(CurrentGroupIndex) * NumIntensityBytesPerPixel);
+            if(BufferIndex >= OutputBufferSize)
             {
                 // DEBUG_V("This write is beyond the end of the Output buffer for this channel");
                 // DEBUG_V(String("      CalculatedChannelId: ") + String(CalculatedChannelId));
@@ -808,19 +830,8 @@ void c_OutputPixel::WriteChannelData(uint32_t StartChannelId, uint32_t ChannelCo
                 break;
             }
 
-            if(uint32_t(pBuffer) >= uint32_t(&(OutputMgr.ISR_GetBufferAddress()[OutputMgr.GetBufferSize()])))
-            {
-                // DEBUG_V("This write is beyond the end of the Global Output buffer");
-                // DEBUG_V(String("      CalculatedChannelId: ") + String(CalculatedChannelId));
-                // DEBUG_V(String("NumIntensityBytesPerPixel: ") + String(NumIntensityBytesPerPixel));
-                // DEBUG_V(String("           PixelGroupSize: ") + String(PixelGroupSize));
-                // DEBUG_V(String("                Last Data: ") + String((CalculatedChannelId + (NumIntensityBytesPerPixel * PixelGroupSize))));
-                // DEBUG_V(String("         OutputBufferSize: ") + String(OutputBufferSize));
-                break;
-            }
-
-            *pBuffer = CurrentIntensityData;
-            pBuffer += NumIntensityBytesPerPixel;
+            // OutputBufferSize is constrained by OutputMgr when the buffer is assigned.
+            pOutputBuffer[uint32_t(BufferIndex)] = CurrentIntensityData;
         }
     }
 

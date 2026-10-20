@@ -88,6 +88,15 @@ private:
 
     OutputRmtConfig_t   OutputRmtConfig;
     bool                OutputIsPaused              = false;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    volatile bool       FrameInFlight               = false;
+    volatile bool       FrameEncodingComplete       = false;
+    uint32_t            FrameStartTick              = 0;
+    uint32_t            ChannelFrameStarts          = 0;
+    uint32_t            ConcurrentFrameStarts       = 0;
+    uint32_t            ChannelFrameCompletes       = 0;
+    uint32_t            ChannelFrameTimeouts        = 0;
+#endif
     uint32_t            NumRmtSlotOverruns          = 0;
     const uint32_t      MaxNumRmtSlotsPerInterrupt  = (NUM_RMT_SLOTS/2);
 
@@ -103,7 +112,11 @@ private:
     void ISR_CreateIntensityData ();
     bool ISR_MoreDataToSend();
     void StartNewDataFrame();
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    void ResetRmtBlockPointers(bool EnableChannel = true);
+#else
     void ISR_ResetRmtBlockPointers();
+#endif
 
 #ifndef HasBeenInitialized
     bool HasBeenInitialized = false;
@@ -117,7 +130,19 @@ public:
 
     void Begin              (OutputRmtConfig_t config, c_OutputCommon * pParent);
     bool StartNewFrame      ();
-    bool StartNextFrame     () { return ((nullptr != pParent) & (!OutputIsPaused)) ? pParent->RmtPoll() : false; }
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    bool StartNextFrame     () { return ((nullptr != pParent) && (!OutputIsPaused) && (!FrameInFlight)) ? pParent->RmtPoll() : false; }
+    bool IsFrameInFlight    () const { return FrameInFlight; }
+    bool IsFrameComplete    () const { return FrameEncodingComplete; }
+    void IRAM_ATTR MarkFrameTransmissionCompleteFromISR () { FrameEncodingComplete = true; }
+    uint32_t GetFrameStartTick () const { return FrameStartTick; }
+    uint32_t GetFrameTimeoutTicks () const { return pdMS_TO_TICKS(max(uint32_t(100), (nullptr != pParent) ? (pParent->GetFrameTimeMs() * 2U + 25U) : 100U)); }
+    bool CompleteFrame      ();
+    void TimeoutFrame       ();
+    void NoteConcurrentStart() { ++ConcurrentFrameStarts; }
+#else
+    bool StartNextFrame     () { return ((nullptr != pParent) && (!OutputIsPaused)) ? pParent->RmtPoll() : false; }
+#endif
     void GetStatus          (ArduinoJson::JsonObject& jsonStatus);
     void PauseOutput        (bool State);
     void GetDriverName      (String &value)  { value = CN_RMT; }

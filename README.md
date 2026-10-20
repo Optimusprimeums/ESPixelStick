@@ -21,6 +21,14 @@ If you would like to compile the project yourself and modify the source code, go
 
 Being open source, you are free to use the ESPixelStick firmware on the device of your choice. The code however is written specifically for the [ESPixelStick](http://forkineye.com/espixelstick). The ESPixelStick V3 utilizes a Wemos D1 Mini module and provides high current connectors, fusing, power filtering, reverse polarity protection, a differential output driver, SD card reader and proper logic level buffering. The ESPixelStick V3 is available for purchase from [Forkineye](https://forkineye.com/product/espixelstick-v3/). The proceeds go towards things like keeping my wife happy so I can work on this project :) At this time, there is not a pre-made ESP32 controller so it is up to the user to roll their own buffer for the WS281x output and add appropriate power connectors. A wide variety of ESP8266 and ESP32 platforms have been added to the supported devices list (37 as of this writting), all of which have artifacts created every build.
 
+### ESP32-S3 N16R8 target
+
+The `esp32s3_devkitc` target is configured for an ESP32-S3-WROOM-1-N16R8 class module: 16 MB QSPI flash and 8 MB OPI PSRAM. Timing-critical output/RMT buffers remain in internal SRAM; PSRAM is reserved for non-real-time bulk allocations. GPIO 35-37 must not be assigned on N16R8 modules because they are used by the octal PSRAM interface.
+
+Runtime status exposes internal-RAM and PSRAM free space, minimum-ever free space and largest free blocks to diagnose fragmentation or memory pressure. RMT output status also reports per-channel frame starts, completions, timeouts, concurrent starts and in-flight state. SD uploads prefer a dedicated PSRAM scratch buffer; if allocation falls back to the output buffer, the pre-upload input operational state and output pause state are restored when the upload completes or aborts.
+
+The web Diagnostics page surfaces these health values directly, highlights internal-RAM/PSRAM pressure and RMT timeouts, reports SD capacity and upload progress, and provides a **Copy Diagnostics** action for support captures. These indicators are operational aids rather than substitutes for hardware validation on the target board.
+
 ## Build Requirements
 
 The recommended way to build ESPixelStick is with PlatformIO. Building from the Arduino IDE is no longer supported.

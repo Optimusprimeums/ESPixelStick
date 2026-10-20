@@ -59,6 +59,7 @@ public:
     void Process              ();
     void SetBufferInfo        (uint32_t BufferSize);
     void SetOperationalState  (bool Active);
+    bool IsOperational        () const { return !PauseProcessing; }
     void NetworkStateChanged  (bool IsConnected);
     void DeleteConfig         () { FileMgr.DeleteFlashFile (ConfigFileName); }
     bool GetNetworkState      () { return IsConnected; }
