@@ -23,6 +23,10 @@ jobs:
         run: |
           g++ -std=c++11 -O2 -Wall -Wextra -Werror -Iinclude/output tests/test_matrix_mapping.cpp -o /tmp/test_matrix_mapping
           /tmp/test_matrix_mapping
+      - name: Compile and run RGB/RGBW grouped channel tests
+        run: |
+          g++ -std=c++11 -O2 -Wall -Wextra -Werror -Iinclude/output tests/test_pixel_channel_mapping.cpp -o /tmp/test_pixel_channel_mapping
+          /tmp/test_pixel_channel_mapping
 
   firmware:
     strategy:
