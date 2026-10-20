@@ -1,4 +1,4 @@
-#include "MatrixMapping.hpp"
+#include "../../include/output/MatrixMapping.hpp"
 /*
 * OutputPixel.cpp - Pixel driver code for ESPixelStick UART
 *
