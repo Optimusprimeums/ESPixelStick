@@ -1,4 +1,5 @@
 #include "../../include/output/MatrixMapping.hpp"
+#include "../../include/output/PixelChannelMapping.hpp"
 /*
 * OutputPixel.cpp - Pixel driver code for ESPixelStick UART
 *
@@ -767,62 +768,11 @@ uint32_t c_OutputPixel::CalculateMatrixPixelId(uint32_t LogicalPixelId) const
 //----------------------------------------------------------------------------
 inline uint32_t c_OutputPixel::CalculateIntensityOffset(uint32_t ChannelId)
 {
-    // DEBUG_START;
-
-    // DEBUG_V(String("              ChannelId: ") + String(ChannelId));
-    uint32_t PixelId = ChannelId / uint32_t(NumIntensityBytesPerPixel);
-    if (MatrixEnabled)
-    {
-        PixelId = CalculateMatrixPixelId(PixelId);
-    }
-    // DEBUG_V(String("               PixelId0: ") + String(PixelId));
-
-    // are we doing a zig zag operation?
-    if (!MatrixEnabled && (zig_size > 1) && (PixelId >= zig_size))
-    {
-        // DEBUG_V(String("               PixelId1: ") + String(PixelId));
-        // DEBUG_V(String("               zig_size: ") + String(zig_size));
-        uint32_t ZigZagGroupId = PixelId / zig_size;
-        // DEBUG_V(String("          ZigZagGroupId: ") + String(ZigZagGroupId));
-
-        // is this a backwards group
-        if (0 != (ZigZagGroupId & 0x1))
-        {
-            // DEBUG_V("Backwards Group");
-            uint32_t zigoffset = PixelId % zig_size;
-            // DEBUG_V(String("              zigoffset: ") + String(zigoffset));
-            uint32_t BaseGroupPixelId = ZigZagGroupId * zig_size;
-            // DEBUG_V(String("      BaseGroupPixelId1: ") + String(BaseGroupPixelId));
-            PixelId = BaseGroupPixelId + (zig_size - 1) - zigoffset;
-            // DEBUG_V(String("      BaseGroupPixelId2: ") + String(BaseGroupPixelId));
-            // DEBUG_V(String("                PixelId: 0x") + String(PixelId, HEX));
-        }
-        // DEBUG_V(String("               PixelId2: ") + String(PixelId));
-    }
-    // DEBUG_V(String("          Final PixelId: ") + String(PixelId));
-
-    uint32_t ColorOrderIndex = ChannelId % NumIntensityBytesPerPixel;
-    if (uint32_t(NumIntensityBytesPerPixel) > ChannelId)
-    {
-        ColorOrderIndex = ChannelId;
-    }
-    uint32_t ColorOrderId = ColorOffsets.Array[ColorOrderIndex];
-    uint32_t PixelIntensityBaseId = PixelId * PixelGroupSize * NumIntensityBytesPerPixel;
-    uint32_t TargetBufferIntensityId = PixelIntensityBaseId + ColorOrderId;
-
-    // DEBUG_V(String("                ChannelId: 0x") + String(ChannelId, HEX));
-    // DEBUG_V(String("                  PixelId: 0x") + String(PixelId, HEX));
-    // DEBUG_V(String("          ColorOrderIndex: 0x") + String(ColorOrderIndex, HEX));
-    // DEBUG_V(String("             ColorOrderId: 0x") + String(ColorOrderId, HEX));
-    // DEBUG_V(String("NumIntensityBytesPerPixel: 0x") + String(NumIntensityBytesPerPixel, HEX));
-    // DEBUG_V(String("           PixelGroupSize: 0x") + String(PixelGroupSize, HEX));
-    // DEBUG_V(String("     PixelIntensityBaseId: 0x") + String(PixelIntensityBaseId, HEX));
-    // DEBUG_V(String("  TargetBufferIntensityId: 0x") + String(TargetBufferIntensityId, HEX));
-
-    // DEBUG_END;
-    return TargetBufferIntensityId;
-
-} // CalculateIntensityOffset
+    return PixelChannelMapping::intensityOffset(
+        ChannelId, NumIntensityBytesPerPixel, PixelGroupSize, ColorOffsets.Array,
+        MatrixWidth, MatrixHeight, MatrixEnabled, MatrixSerpentine, MatrixVertical,
+        MatrixReverseX, MatrixReverseY, MatrixRotation);
+}
 
 //----------------------------------------------------------------------------
 void c_OutputPixel::WriteChannelData(uint32_t StartChannelId, uint32_t ChannelCount, byte *pSourceData)
@@ -839,22 +789,24 @@ void c_OutputPixel::WriteChannelData(uint32_t StartChannelId, uint32_t ChannelCo
     // DEBUG_V(String("                      ChannelCount: 0x") + String(ChannelCount, HEX));
     // DEBUG_V(String("                AdjustedBrightness: ") + String(AdjustedBrightness));
 
-    uint32_t EndChannelId = StartChannelId + ChannelCount;
     uint32_t SourceDataIndex = 0;
-    for (uint32_t currentChannelId = StartChannelId; currentChannelId < EndChannelId; ++currentChannelId, ++SourceDataIndex)
+    for (uint32_t channelOffset = 0; channelOffset < ChannelCount; ++channelOffset, ++SourceDataIndex)
     {
+        if (StartChannelId > (UINT32_MAX - channelOffset)) { break; }
+        const uint32_t currentChannelId = StartChannelId + channelOffset;
         // DEBUG_V(String("      pSourceData[SourceDataIndex]: ") + String(pSourceData[SourceDataIndex]));
         uint32_t CurrentIntensityData = gamma_table[pSourceData[SourceDataIndex]];
         // DEBUG_V(String("              CurrentIntensityData: ") + String(CurrentIntensityData));
         CurrentIntensityData = uint8_t((uint32_t(CurrentIntensityData) * AdjustedBrightness) >> 8);
         // DEBUG_V(String("              CurrentIntensityData: ") + String(CurrentIntensityData));
         uint32_t CalculatedChannelId = CalculateIntensityOffset(currentChannelId);
-        uint8_t *pBuffer = &pOutputBuffer[CalculatedChannelId];
         for(uint32_t CurrentGroupIndex = 0; CurrentGroupIndex < PixelGroupSize; ++CurrentGroupIndex)
         {
             // DEBUG_V(String("      CurrentGroupIndex: 0x") + String(CurrentGroupIndex, HEX));
             // DEBUG_V(String("    CalculatedChannelId: 0x") + String(CalculatedChannelId, HEX));
-            if(uint32_t(pBuffer) >= uint32_t(&pOutputBuffer[OutputBufferSize]))
+            const uint64_t BufferIndex = uint64_t(CalculatedChannelId) +
+                                         (uint64_t(CurrentGroupIndex) * NumIntensityBytesPerPixel);
+            if(BufferIndex >= OutputBufferSize)
             {
                 // DEBUG_V("This write is beyond the end of the Output buffer for this channel");
                 // DEBUG_V(String("      CalculatedChannelId: ") + String(CalculatedChannelId));
@@ -865,19 +817,8 @@ void c_OutputPixel::WriteChannelData(uint32_t StartChannelId, uint32_t ChannelCo
                 break;
             }
 
-            if(uint32_t(pBuffer) >= uint32_t(&(OutputMgr.ISR_GetBufferAddress()[OutputMgr.GetBufferSize()])))
-            {
-                // DEBUG_V("This write is beyond the end of the Global Output buffer");
-                // DEBUG_V(String("      CalculatedChannelId: ") + String(CalculatedChannelId));
-                // DEBUG_V(String("NumIntensityBytesPerPixel: ") + String(NumIntensityBytesPerPixel));
-                // DEBUG_V(String("           PixelGroupSize: ") + String(PixelGroupSize));
-                // DEBUG_V(String("                Last Data: ") + String((CalculatedChannelId + (NumIntensityBytesPerPixel * PixelGroupSize))));
-                // DEBUG_V(String("         OutputBufferSize: ") + String(OutputBufferSize));
-                break;
-            }
-
-            *pBuffer = CurrentIntensityData;
-            pBuffer += NumIntensityBytesPerPixel;
+            // OutputBufferSize is constrained by OutputMgr when the buffer is assigned.
+            pOutputBuffer[uint32_t(BufferIndex)] = CurrentIntensityData;
         }
     }
 
