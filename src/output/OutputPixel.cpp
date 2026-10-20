@@ -768,6 +768,19 @@ uint32_t c_OutputPixel::CalculateMatrixPixelId(uint32_t LogicalPixelId) const
 //----------------------------------------------------------------------------
 inline uint32_t c_OutputPixel::CalculateIntensityOffset(uint32_t ChannelId)
 {
+    // Preserve the legacy zig-zag mapping when 2D matrix mode is disabled.
+    // The shared channel mapper handles matrix mode and color/group offsets.
+    if (!MatrixEnabled && (zig_size > 1))
+    {
+        uint32_t pixelId = ChannelId / uint32_t(NumIntensityBytesPerPixel);
+        const uint32_t zigGroup = pixelId / zig_size;
+        if (zigGroup & 1U)
+        {
+            pixelId = zigGroup * zig_size + (zig_size - 1U) - (pixelId % zig_size);
+        }
+        return pixelId * PixelGroupSize * NumIntensityBytesPerPixel +
+               ColorOffsets.Array[ChannelId % NumIntensityBytesPerPixel];
+    }
     return PixelChannelMapping::intensityOffset(
         ChannelId, NumIntensityBytesPerPixel, PixelGroupSize, ColorOffsets.Array,
         MatrixWidth, MatrixHeight, MatrixEnabled, MatrixSerpentine, MatrixVertical,
